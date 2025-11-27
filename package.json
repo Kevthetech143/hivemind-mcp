@@ -19,11 +19,11 @@
     "ai",
     "hivemind"
   ],
-  "author": "clauderepo",
+  "author": "hivemind",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/clauderepo/hivemind-mcp"
+    "url": "https://github.com/Kevthetech143/hivemind-mcp"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0"
