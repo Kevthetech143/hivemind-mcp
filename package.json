@@ -1,0 +1,35 @@
+{
+  "name": "hivemind-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for hivemind - collective debugging knowledge for AI",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "hivemind-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "claude",
+    "debugging",
+    "ai",
+    "hivemind"
+  ],
+  "author": "clauderepo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clauderepo/hivemind-mcp"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
