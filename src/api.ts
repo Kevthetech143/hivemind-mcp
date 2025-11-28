@@ -3,7 +3,7 @@
  * Connects to the hivemind backend API
  */
 
-const API_BASE = process.env.HIVEMIND_API_URL || "https://api.hivemind.sh";
+const API_BASE = process.env.HIVEMIND_API_URL || "https://ksethrexopllfhyrxlrb.supabase.co/functions/v1";
 const API_KEY = process.env.HIVEMIND_API_KEY;
 
 interface SearchResult {
@@ -93,6 +93,88 @@ export async function contributeSOlution(
 
   if (!response.ok) {
     throw new Error(`Contribution failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+interface SkillListResult {
+  action: string;
+  type: string;
+  flows: Array<{
+    id: number;
+    query: string;
+    category: string;
+    solutions?: any;
+    common_pitfalls?: string;
+    created_at?: string;
+  }>;
+  total_count: number;
+  categories: string[];
+}
+
+interface SkillDetailResult {
+  action: string;
+  flow: {
+    id: number;
+    query: string;
+    category: string;
+    solutions?: any;
+    common_pitfalls?: string;
+    prerequisites?: string;
+    success_indicators?: string;
+    executable?: any;
+    executable_type?: string;
+    preview_summary?: string;
+    view_count?: number;
+    created_at?: string;
+  };
+}
+
+/**
+ * List all skills (optionally filtered by category)
+ */
+export async function listSkills(category?: string): Promise<SkillListResult> {
+  const response = await fetch(`${API_BASE}/v1/flows`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(API_KEY && { Authorization: `Bearer ${API_KEY}` }),
+    },
+    body: JSON.stringify({
+      action: "list",
+      type: "skill",
+      category: category || null,
+      limit: 100,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`List skills failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get a specific skill by ID
+ */
+export async function getSkill(skillId: number): Promise<SkillDetailResult> {
+  const response = await fetch(`${API_BASE}/v1/flows`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(API_KEY && { Authorization: `Bearer ${API_KEY}` }),
+    },
+    body: JSON.stringify({
+      action: "get",
+      type: "skill",
+      flow_id: skillId,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Get skill failed: ${response.statusText}`);
   }
 
   return response.json();

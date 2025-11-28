@@ -5,7 +5,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { searchKnowledgeBase, reportOutcome, contributeSOlution } from "./api.js";
+import { searchKnowledgeBase, reportOutcome, contributeSOlution, listSkills, getSkill } from "./api.js";
 
 const server = new Server(
   {
@@ -82,6 +82,35 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["query", "solution"],
         },
       },
+      {
+        name: "list_skills",
+        description:
+          "List all available skills in the knowledge base, optionally filtered by category. Skills are executable step-by-step guides.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            category: {
+              type: "string",
+              description: "Optional: Filter skills by category (e.g., 'claude-code', 'python', 'docker')",
+            },
+          },
+        },
+      },
+      {
+        name: "get_skill",
+        description:
+          "Get detailed information about a specific skill including full instructions and executable steps.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            skill_id: {
+              type: "number",
+              description: "The ID of the skill to retrieve",
+            },
+          },
+          required: ["skill_id"],
+        },
+      },
     ],
   };
 });
@@ -92,7 +121,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   switch (name) {
     case "search_kb": {
-      const result = await searchKnowledgeBase(args.query as string);
+      const result = await searchKnowledgeBase(args?.query as string);
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
@@ -100,8 +129,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "report_outcome": {
       const result = await reportOutcome(
-        args.solution_id as number | undefined,
-        args.outcome as "success" | "failure"
+        args?.solution_id as number | undefined,
+        args?.outcome as "success" | "failure"
       );
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
@@ -110,10 +139,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "contribute_solution": {
       const result = await contributeSOlution(
-        args.query as string,
-        args.solution as string,
-        args.category as string | undefined
+        args?.query as string,
+        args?.solution as string,
+        args?.category as string | undefined
       );
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case "list_skills": {
+      const result = await listSkills(args?.category as string | undefined);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case "get_skill": {
+      const result = await getSkill(args?.skill_id as number);
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
