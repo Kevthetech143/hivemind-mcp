@@ -4,7 +4,7 @@
  */
 
 const API_BASE = process.env.HIVEMIND_API_URL || "https://ksethrexopllfhyrxlrb.supabase.co/functions/v1";
-const API_KEY = process.env.HIVEMIND_API_KEY;
+const API_KEY = process.env.HIVEMIND_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzZXRocmV4b3BsbGZoeXJ4bHJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NDU4ODksImV4cCI6MjA3OTMyMTg4OX0.SDJulNaemJ66EaFl77-1IJLTAleihU5PvEChNaO5osI";
 
 interface SearchResult {
   query: string;
