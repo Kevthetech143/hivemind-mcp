@@ -35,7 +35,7 @@ interface ContributeResult {
  * Search the hivemind knowledge base
  */
 export async function searchKnowledgeBase(query: string): Promise<SearchResult> {
-  const response = await fetch(`${API_BASE}/v1/search`, {
+  const response = await fetch(`${API_BASE}/search`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -58,7 +58,7 @@ export async function reportOutcome(
   solutionId: number | undefined,
   outcome: "success" | "failure"
 ): Promise<OutcomeResult> {
-  const response = await fetch(`${API_BASE}/v1/outcome`, {
+  const response = await fetch(`${API_BASE}/outcome`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -82,7 +82,7 @@ export async function contributeSOlution(
   solution: string,
   category?: string
 ): Promise<ContributeResult> {
-  const response = await fetch(`${API_BASE}/v1/contribute`, {
+  const response = await fetch(`${API_BASE}/contribute`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -135,7 +135,7 @@ interface SkillDetailResult {
  * List all skills (optionally filtered by category)
  */
 export async function listSkills(category?: string): Promise<SkillListResult> {
-  const response = await fetch(`${API_BASE}/v1/flows`, {
+  const response = await fetch(`${API_BASE}/flows`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -160,7 +160,7 @@ export async function listSkills(category?: string): Promise<SkillListResult> {
  * Get a specific skill by ID
  */
 export async function getSkill(skillId: number): Promise<SkillDetailResult> {
-  const response = await fetch(`${API_BASE}/v1/flows`, {
+  const response = await fetch(`${API_BASE}/flows`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
