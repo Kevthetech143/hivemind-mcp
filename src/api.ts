@@ -185,3 +185,115 @@ export async function getSkill(skillId: number): Promise<SkillDetailResult> {
 
   return response.json();
 }
+
+interface InitProjectResult {
+  success: boolean;
+  user_id: string;
+  project_id: string;
+  project_name: string;
+  storage_type: string;
+  rate_limit: number;
+  message: string;
+}
+
+interface ContributeProjectResult {
+  success: boolean;
+  entry_id: number;
+  message: string;
+}
+
+interface SearchProjectResult {
+  query: string;
+  results: any[];
+  count: number;
+  source: string;
+}
+
+/**
+ * Initialize project knowledge base
+ */
+export async function initProjectKB(
+  projectId: string,
+  projectName: string,
+  storageType: 'cloud' | 'local' = 'cloud'
+): Promise<InitProjectResult> {
+  const response = await fetch(`${API_BASE}/init-project`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      project_id: projectId,
+      project_name: projectName,
+      storage_type: storageType
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Init project failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Contribute to project knowledge base
+ */
+export async function contributeProject(
+  userId: string,
+  projectId: string,
+  query: string,
+  solution: string,
+  category?: string,
+  isPublic: boolean = false
+): Promise<ContributeProjectResult> {
+  const response = await fetch(`${API_BASE}/contribute-project`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      project_id: projectId,
+      query,
+      solution,
+      category,
+      is_public: isPublic
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Contribute project failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Search project knowledge base
+ */
+export async function searchProject(
+  userId: string,
+  query: string,
+  projectId?: string,
+  includePublic: boolean = true
+): Promise<SearchProjectResult> {
+  const response = await fetch(`${API_BASE}/search-project`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      query,
+      project_id: projectId,
+      include_public: includePublic
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Search project failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}

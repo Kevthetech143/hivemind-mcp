@@ -97,10 +97,16 @@ serve(async (req) => {
         return await handleGetSkill(supabase, body, corsHeaders);
       case 'count-skills':
         return await handleCountSkills(supabase, corsHeaders);
+      case 'init-project':
+        return await handleInitProject(supabase, body, corsHeaders);
+      case 'contribute-project':
+        return await handleContributeProject(supabase, body, corsHeaders);
+      case 'search-project':
+        return await handleSearchProject(supabase, body, corsHeaders);
       default:
         return new Response(JSON.stringify({
           error: 'Unknown action',
-          available_actions: ['search', 'contribute', 'report', 'search-skills', 'skill', 'count-skills']
+          available_actions: ['search', 'contribute', 'report', 'search-skills', 'skill', 'count-skills', 'init-project', 'contribute-project', 'search-project']
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -395,6 +401,155 @@ async function handleCountSkills(supabase: any, corsHeaders: any) {
 
   return new Response(JSON.stringify({
     total: count || 0
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// Initialize project KB - creates user_id if needed, sets cloud tier
+async function handleInitProject(supabase: any, body: any, corsHeaders: any) {
+  const { project_id, project_name, storage_type = 'cloud' } = body;
+
+  if (!project_id || !project_name) {
+    return new Response(JSON.stringify({ error: 'project_id and project_name required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Generate user_id (simple UUID for now, could be extended to real auth)
+  const user_id = crypto.randomUUID();
+
+  // Set cloud storage tier (1000/hour rate limit)
+  if (storage_type === 'cloud') {
+    const { error: tierError } = await supabase.rpc('set_cloud_storage_tier', {
+      p_user_id: user_id
+    });
+
+    if (tierError) {
+      console.error('Failed to set cloud tier:', tierError);
+    }
+  }
+
+  return new Response(JSON.stringify({
+    success: true,
+    user_id,
+    project_id,
+    project_name,
+    storage_type,
+    rate_limit: storage_type === 'cloud' ? 1000 : 100,
+    message: `Project KB initialized. Store this user_id for future contributions.`
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// Contribute to project KB - stores project-specific knowledge
+async function handleContributeProject(supabase: any, body: any, corsHeaders: any) {
+  const { user_id, project_id, query, solution, category, is_public = false } = body;
+
+  if (!user_id || !project_id || !query || !solution) {
+    return new Response(JSON.stringify({ error: 'user_id, project_id, query, and solution required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Get project name from first entry or use project_id as fallback
+  const { data: existingEntry } = await supabase
+    .from('knowledge_entries')
+    .select('project_name')
+    .eq('user_id', user_id)
+    .eq('project_id', project_id)
+    .limit(1)
+    .single();
+
+  const project_name = existingEntry?.project_name || project_id;
+
+  // Insert project knowledge entry
+  const { data, error } = await supabase
+    .from('knowledge_entries')
+    .insert({
+      user_id,
+      project_id,
+      project_name,
+      query,
+      solution,
+      category: category || 'general',
+      is_public,
+      type: 'solution',
+      success_count: 0,
+      failure_count: 0,
+      command: null
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Contribute project error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to store project knowledge' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  return new Response(JSON.stringify({
+    success: true,
+    entry_id: data.id,
+    message: `Added to ${project_name} KB${is_public ? ' (public)' : ' (private)'}`
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// Search project KB - searches user's private project knowledge
+async function handleSearchProject(supabase: any, body: any, corsHeaders: any) {
+  const { user_id, project_id, query, include_public = true } = body;
+
+  if (!user_id || !query) {
+    return new Response(JSON.stringify({ error: 'user_id and query required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Build query filter
+  let queryBuilder = supabase
+    .from('knowledge_entries')
+    .select('*');
+
+  if (project_id) {
+    // Search specific project
+    queryBuilder = queryBuilder.or(`user_id.eq.${user_id},is_public.eq.true`);
+    queryBuilder = queryBuilder.eq('project_id', project_id);
+  } else {
+    // Search all user's projects + public if enabled
+    if (include_public) {
+      queryBuilder = queryBuilder.or(`user_id.eq.${user_id},is_public.eq.true`);
+    } else {
+      queryBuilder = queryBuilder.eq('user_id', user_id);
+    }
+  }
+
+  // Use text search on query and solution
+  queryBuilder = queryBuilder.textSearch('fts', query.split(' ').join(' & '));
+  queryBuilder = queryBuilder.limit(10);
+
+  const { data: results, error } = await queryBuilder;
+
+  if (error) {
+    console.error('Search project error:', error);
+    return new Response(JSON.stringify({ error: 'Search failed' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  return new Response(JSON.stringify({
+    query,
+    results: results || [],
+    count: results?.length || 0,
+    source: project_id ? `project:${project_id}` : 'all projects'
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });

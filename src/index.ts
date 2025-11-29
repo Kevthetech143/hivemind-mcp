@@ -5,7 +5,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills } from "./api.js";
+import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills, initProjectKB, contributeProject, searchProject } from "./api.js";
 
 const server = new Server(
   {
@@ -121,6 +121,92 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {},
         },
       },
+      {
+        name: "init_project_kb",
+        description:
+          "Initialize a project-specific knowledge base with cloud storage. Returns user_id to store for future contributions. Cloud storage users get 10x rate limits (1000/hour vs 100/hour).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            project_id: {
+              type: "string",
+              description: "Unique project identifier (e.g., 'hivemind-mcp', 'my-app')",
+            },
+            project_name: {
+              type: "string",
+              description: "Human-readable project name",
+            },
+            storage_type: {
+              type: "string",
+              enum: ["cloud", "local"],
+              description: "Storage type: 'cloud' (10x limits) or 'local' (default limits)",
+            },
+          },
+          required: ["project_id", "project_name"],
+        },
+      },
+      {
+        name: "contribute_project",
+        description:
+          "Store project-specific knowledge (errors, solutions, patterns). Private by default, optionally public.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            user_id: {
+              type: "string",
+              description: "User ID from init_project_kb",
+            },
+            project_id: {
+              type: "string",
+              description: "Project identifier",
+            },
+            query: {
+              type: "string",
+              description: "Error message or problem description",
+            },
+            solution: {
+              type: "string",
+              description: "What fixed it",
+            },
+            category: {
+              type: "string",
+              description: "Optional category (auto-detected if not provided)",
+            },
+            is_public: {
+              type: "boolean",
+              description: "Make this entry public (default: false/private)",
+            },
+          },
+          required: ["user_id", "project_id", "query", "solution"],
+        },
+      },
+      {
+        name: "search_project",
+        description:
+          "Search project-specific knowledge base. Searches your private entries + optionally public entries.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            user_id: {
+              type: "string",
+              description: "User ID from init_project_kb",
+            },
+            query: {
+              type: "string",
+              description: "Search query",
+            },
+            project_id: {
+              type: "string",
+              description: "Optional: limit to specific project",
+            },
+            include_public: {
+              type: "boolean",
+              description: "Include public entries in results (default: true)",
+            },
+          },
+          required: ["user_id", "query"],
+        },
+      },
     ],
   };
 });
@@ -174,6 +260,43 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "count_skills": {
       const result = await countSkills();
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case "init_project_kb": {
+      const result = await initProjectKB(
+        args?.project_id as string,
+        args?.project_name as string,
+        args?.storage_type as 'cloud' | 'local' | undefined
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case "contribute_project": {
+      const result = await contributeProject(
+        args?.user_id as string,
+        args?.project_id as string,
+        args?.query as string,
+        args?.solution as string,
+        args?.category as string | undefined,
+        args?.is_public as boolean | undefined
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case "search_project": {
+      const result = await searchProject(
+        args?.user_id as string,
+        args?.query as string,
+        args?.project_id as string | undefined,
+        args?.include_public as boolean | undefined
+      );
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
