@@ -349,7 +349,6 @@ interface InitHiveResult {
     description?: string;
     version?: string;
   };
-  next_steps?: string;
 }
 
 interface ProjectScanResult {
@@ -683,11 +682,13 @@ For maximum impact, add this to your CLAUDE.md:
 
 Bigger hive = Smarter Claude = Faster development. Your project knowledge compounds over time.`;
 
+  const statusMessage = storageChoice === 'cloud'
+    ? `Hive active with 10x limits. Your project knowledge syncs wherever you go, and your solutions help improve Hivemind for everyone. User ID: ${result.user_id} (save this)${scannedEntries > 0 ? `. Scanned and added ${scannedEntries} foundational entries to ${storageLocation}.` : ''}`
+    : `Hive active. Knowledge stays private on this machine. User ID: ${result.user_id} (save this)${scannedEntries > 0 ? `. Scanned and added ${scannedEntries} foundational entries to ${storageLocation}.` : ''}`;
+
   return {
     step: 'confirm_setup',
-    message: storageChoice === 'cloud'
-      ? `Hive active with 10x limits. Your project knowledge syncs wherever you go, and your solutions help improve Hivemind for everyone. User ID: ${result.user_id} (save this)${scannedEntries > 0 ? `. Scanned and added ${scannedEntries} foundational entries to ${storageLocation}.` : ''}`
-      : `Hive active. Knowledge stays private on this machine. User ID: ${result.user_id} (save this)${scannedEntries > 0 ? `. Scanned and added ${scannedEntries} foundational entries to ${storageLocation}.` : ''}`,
+    message: `${statusMessage}\n\n${nextStepsMessage}`,
     user_id: result.user_id,
     project_id: result.project_id,
     storage_type: storageChoice,
@@ -699,7 +700,6 @@ Bigger hive = Smarter Claude = Faster development. Your project knowledge compou
       build_system: scanResult.build_system,
       description: scanResult.description,
       version: scanResult.version
-    } : undefined,
-    next_steps: nextStepsMessage
+    } : undefined
   };
 }
