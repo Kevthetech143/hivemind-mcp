@@ -5,7 +5,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills, initProjectKB, contributeProject, searchProject, initHive } from "./api.js";
+import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills, initProjectKB, contributeProject, searchProject, initHive, deleteHive } from "./api.js";
 
 const server = new Server(
   {
@@ -235,6 +235,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["project_id", "project_name"],
         },
       },
+      {
+        name: "delete_hive",
+        description:
+          "Delete project hive and all associated knowledge entries. Use this to start fresh or remove a project's knowledge base completely.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            user_id: {
+              type: "string",
+              description: "User ID from init_hive",
+            },
+            project_id: {
+              type: "string",
+              description: "Project identifier to delete",
+            },
+          },
+          required: ["user_id", "project_id"],
+        },
+      },
     ],
   };
 });
@@ -336,6 +355,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         args?.project_name as string,
         args?.storage_choice as 'cloud' | 'local' | undefined,
         args?.project_path as string | undefined
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case "delete_hive": {
+      const result = await deleteHive(
+        args?.user_id as string,
+        args?.project_id as string
       );
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

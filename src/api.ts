@@ -298,6 +298,38 @@ export async function searchProject(
   return response.json();
 }
 
+interface DeleteHiveResult {
+  success: boolean;
+  deleted_entries: number;
+  message: string;
+  user_deleted: boolean;
+}
+
+/**
+ * Delete project hive - removes all project entries
+ */
+export async function deleteHive(
+  userId: string,
+  projectId: string
+): Promise<DeleteHiveResult> {
+  const response = await fetch(`${API_BASE}/delete-hive`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      project_id: projectId
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Delete hive failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 interface InitHiveResult {
   step: 'ask_storage' | 'confirm_setup';
   message: string;
@@ -309,6 +341,14 @@ interface InitHiveResult {
   project_id?: string;
   storage_type?: string;
   scanned_entries?: number;
+  scan_results?: {
+    tech_stack: string[];
+    architecture: string[];
+    database?: string;
+    build_system?: string;
+    description?: string;
+    version?: string;
+  };
 }
 
 interface ProjectScanResult {
@@ -530,11 +570,12 @@ export async function initHive(
   const result = await initProjectKB(projectId, projectName, storageChoice);
 
   let scannedEntries = 0;
+  let scanResult: ProjectScanResult | undefined;
 
   // Step 3: Scan project and auto-contribute base knowledge
   if (projectPath && result.user_id) {
     try {
-      const scanResult = await scanProject(projectPath);
+      scanResult = await scanProject(projectPath);
 
       // Contribute project overview
       const overviewParts = [];
@@ -612,14 +653,26 @@ export async function initHive(
     }
   }
 
+  const storageLocation = storageChoice === 'cloud'
+    ? 'Supabase cloud database (ksethrexopllfhyrxlrb.supabase.co)'
+    : 'Supabase cloud database (ksethrexopllfhyrxlrb.supabase.co)';
+
   return {
     step: 'confirm_setup',
     message: storageChoice === 'cloud'
-      ? `Hive active with 10x limits. Your project knowledge syncs wherever you go, and your solutions help improve Hivemind for everyone. User ID: ${result.user_id} (save this)${scannedEntries > 0 ? `. Scanned and added ${scannedEntries} foundational entries.` : ''}`
-      : 'Hive active. Knowledge stays private on this machine.',
+      ? `Hive active with 10x limits. Your project knowledge syncs wherever you go, and your solutions help improve Hivemind for everyone. User ID: ${result.user_id} (save this)${scannedEntries > 0 ? `. Scanned and added ${scannedEntries} foundational entries to ${storageLocation}.` : ''}`
+      : `Hive active. Knowledge stays private on this machine. User ID: ${result.user_id} (save this)${scannedEntries > 0 ? `. Scanned and added ${scannedEntries} foundational entries to ${storageLocation}.` : ''}`,
     user_id: result.user_id,
     project_id: result.project_id,
     storage_type: storageChoice,
-    scanned_entries: scannedEntries
+    scanned_entries: scannedEntries,
+    scan_results: scanResult ? {
+      tech_stack: scanResult.tech_stack,
+      architecture: scanResult.architecture,
+      database: scanResult.database,
+      build_system: scanResult.build_system,
+      description: scanResult.description,
+      version: scanResult.version
+    } : undefined
   };
 }

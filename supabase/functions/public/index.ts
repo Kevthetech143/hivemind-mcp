@@ -103,10 +103,12 @@ serve(async (req) => {
         return await handleContributeProject(supabase, body, corsHeaders);
       case 'search-project':
         return await handleSearchProject(supabase, body, corsHeaders);
+      case 'delete-hive':
+        return await handleDeleteHive(supabase, body, corsHeaders);
       default:
         return new Response(JSON.stringify({
           error: 'Unknown action',
-          available_actions: ['search', 'contribute', 'report', 'search-skills', 'skill', 'count-skills', 'init-project', 'contribute-project', 'search-project']
+          available_actions: ['search', 'contribute', 'report', 'search-skills', 'skill', 'count-skills', 'init-project', 'contribute-project', 'search-project', 'delete-hive']
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -550,6 +552,66 @@ async function handleSearchProject(supabase: any, body: any, corsHeaders: any) {
     results: results.slice(0, 10),
     count: results.length,
     source: project_id ? `project:${project_id}` : 'all projects'
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// Delete project hive - removes all project entries and user tier
+async function handleDeleteHive(supabase: any, body: any, corsHeaders: any) {
+  const { user_id, project_id } = body;
+
+  if (!user_id || !project_id) {
+    return new Response(JSON.stringify({ error: 'user_id and project_id required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Count entries before deletion
+  const { count: entriesCount } = await supabase
+    .from('knowledge_entries')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user_id)
+    .eq('project_id', project_id);
+
+  // Delete all project entries
+  const { error: deleteError } = await supabase
+    .from('knowledge_entries')
+    .delete()
+    .eq('user_id', user_id)
+    .eq('project_id', project_id);
+
+  if (deleteError) {
+    console.error('Delete entries error:', deleteError);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Failed to delete project entries'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Check if user has any other projects
+  const { count: otherProjectsCount } = await supabase
+    .from('knowledge_entries')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user_id);
+
+  // If no other projects, delete user from contributor_tiers
+  if (otherProjectsCount === 0) {
+    await supabase
+      .from('contributor_tiers')
+      .delete()
+      .eq('user_id', user_id);
+  }
+
+  return new Response(JSON.stringify({
+    success: true,
+    deleted_entries: entriesCount || 0,
+    message: `Deleted ${entriesCount || 0} entries for ${project_id}${otherProjectsCount === 0 ? '. User tier removed.' : ''}`,
+    user_deleted: otherProjectsCount === 0
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
