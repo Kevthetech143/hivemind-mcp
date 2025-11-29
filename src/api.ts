@@ -317,6 +317,8 @@ interface ProjectScanResult {
   database?: string;
   build_system?: string;
   categories: string[];
+  description?: string;
+  version?: string;
 }
 
 /**
@@ -338,6 +340,10 @@ async function scanProject(projectPath: string): Promise<ProjectScanResult> {
     const pkgPath = path.join(projectPath, 'package.json');
     const pkgContent = await fs.readFile(pkgPath, 'utf-8');
     const pkg = JSON.parse(pkgContent);
+
+    // Extract metadata
+    result.description = pkg.description;
+    result.version = pkg.version;
 
     // Detect tech stack from dependencies
     const allDeps = {
@@ -422,6 +428,25 @@ export async function initHive(
   if (projectPath && result.user_id) {
     try {
       const scanResult = await scanProject(projectPath);
+
+      // Contribute project overview
+      const overviewParts = [];
+      if (scanResult.description) overviewParts.push(scanResult.description);
+      if (scanResult.version) overviewParts.push(`Version: ${scanResult.version}`);
+      if (scanResult.tech_stack.length > 0) overviewParts.push(`Tech: ${scanResult.tech_stack.join(', ')}`);
+      if (scanResult.database) overviewParts.push(`Database: ${scanResult.database}`);
+
+      if (overviewParts.length > 0) {
+        await contributeProject(
+          result.user_id,
+          projectId,
+          `What is ${projectName}? Give me a project overview.`,
+          overviewParts.join('. '),
+          'project-overview',
+          false
+        );
+        scannedEntries++;
+      }
 
       // Contribute tech stack
       if (scanResult.tech_stack.length > 0) {
