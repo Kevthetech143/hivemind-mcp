@@ -349,6 +349,7 @@ interface InitHiveResult {
     description?: string;
     version?: string;
   };
+  next_steps?: string;
 }
 
 interface ProjectScanResult {
@@ -657,6 +658,31 @@ export async function initHive(
     ? 'Supabase cloud database (ksethrexopllfhyrxlrb.supabase.co)'
     : 'Supabase cloud database (ksethrexopllfhyrxlrb.supabase.co)';
 
+  const nextStepsMessage = `This hive is your project's growing brain. Every solution, pitfall, broken approach, and architecture decision you store makes Claude faster and smarter in future sessions. The bigger your hive grows, the less you re-explain and the fewer past mistakes get repeated.
+
+Updating is simple: Just say "update hive" and Claude will analyze what you worked on and add relevant entries automatically.
+
+Store:
+- Solutions that worked
+- Approaches that failed (so Claude avoids them)
+- Architecture decisions and why you made them
+- Database schema changes
+- Common pitfalls and gotchas
+- Dependencies and version issues
+
+For maximum impact, add this to your CLAUDE.md:
+
+## Project Hive: ${projectName}
+- User ID: ${result.user_id}
+- Project ID: ${projectId}
+
+**Protocol:**
+1. Search hive before working: mcp__hivemind__search_project(user_id, query, project_id)
+2. After every session: "update hive" (Claude adds entries for you)
+3. Keep it current - run "update hive" after major changes
+
+Bigger hive = Smarter Claude = Faster development. Your project knowledge compounds over time.`;
+
   return {
     step: 'confirm_setup',
     message: storageChoice === 'cloud'
@@ -673,6 +699,7 @@ export async function initHive(
       build_system: scanResult.build_system,
       description: scanResult.description,
       version: scanResult.version
-    } : undefined
+    } : undefined,
+    next_steps: nextStepsMessage
   };
 }
