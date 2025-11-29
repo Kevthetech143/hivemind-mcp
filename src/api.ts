@@ -308,17 +308,98 @@ interface InitHiveResult {
   user_id?: string;
   project_id?: string;
   storage_type?: string;
+  scanned_entries?: number;
+}
+
+interface ProjectScanResult {
+  tech_stack: string[];
+  architecture: string[];
+  database?: string;
+  build_system?: string;
+  categories: string[];
+}
+
+/**
+ * Scan project directory for tech stack and architecture
+ * Returns structured data about the project
+ */
+async function scanProject(projectPath: string): Promise<ProjectScanResult> {
+  const fs = await import('fs/promises');
+  const path = await import('path');
+
+  const result: ProjectScanResult = {
+    tech_stack: [],
+    architecture: [],
+    categories: ['tech-stack', 'architecture']
+  };
+
+  try {
+    // Read package.json
+    const pkgPath = path.join(projectPath, 'package.json');
+    const pkgContent = await fs.readFile(pkgPath, 'utf-8');
+    const pkg = JSON.parse(pkgContent);
+
+    // Detect tech stack from dependencies
+    const allDeps = {
+      ...pkg.dependencies,
+      ...pkg.devDependencies
+    };
+
+    if (allDeps['typescript']) result.tech_stack.push('TypeScript');
+    if (allDeps['@modelcontextprotocol/sdk']) {
+      result.tech_stack.push('MCP Server');
+      result.architecture.push('MCP stdio transport');
+      result.categories.push('mcp-development');
+    }
+    if (allDeps['react']) result.tech_stack.push('React');
+    if (allDeps['next']) result.tech_stack.push('Next.js');
+    if (allDeps['vue']) result.tech_stack.push('Vue');
+    if (allDeps['@supabase/supabase-js']) {
+      result.tech_stack.push('Supabase');
+      result.categories.push('supabase-backend');
+    }
+
+    // Detect from package.json scripts
+    if (pkg.scripts?.build?.includes('tsc')) {
+      result.build_system = 'TypeScript compiler (tsc)';
+    }
+
+    // Check for supabase directory
+    try {
+      const supabasePath = path.join(projectPath, 'supabase');
+      const supabaseStats = await fs.stat(supabasePath);
+      if (supabaseStats.isDirectory()) {
+        result.database = 'PostgreSQL (Supabase)';
+        result.architecture.push('Supabase edge functions');
+        result.categories.push('database', 'edge-functions');
+      }
+    } catch {
+      // No supabase directory
+    }
+
+    // Detect Node.js
+    if (pkg.engines?.node || pkg.scripts) {
+      result.tech_stack.push('Node.js');
+    }
+
+  } catch (error) {
+    // If can't read package.json, return minimal result
+    console.error('Scan error:', error);
+  }
+
+  return result;
 }
 
 /**
  * Initialize project hive - guided flow
  * Step 1: Returns storage options
- * Step 2: User provides choice, gets confirmation
+ * Step 2: User provides choice, gets confirmation + scanned knowledge
  */
 export async function initHive(
   projectId: string,
   projectName: string,
-  storageChoice?: 'cloud' | 'local'
+  storageChoice?: 'cloud' | 'local',
+  projectPath?: string
 ): Promise<InitHiveResult> {
   // Step 1: No choice yet, return options
   if (!storageChoice) {
@@ -335,13 +416,78 @@ export async function initHive(
   // Step 2: User chose, initialize
   const result = await initProjectKB(projectId, projectName, storageChoice);
 
+  let scannedEntries = 0;
+
+  // Step 3: Scan project and auto-contribute base knowledge
+  if (projectPath && result.user_id) {
+    try {
+      const scanResult = await scanProject(projectPath);
+
+      // Contribute tech stack
+      if (scanResult.tech_stack.length > 0) {
+        await contributeProject(
+          result.user_id,
+          projectId,
+          `What is the tech stack for ${projectName}?`,
+          `Tech stack: ${scanResult.tech_stack.join(', ')}`,
+          'tech-stack',
+          false
+        );
+        scannedEntries++;
+      }
+
+      // Contribute architecture
+      if (scanResult.architecture.length > 0) {
+        await contributeProject(
+          result.user_id,
+          projectId,
+          `What is the architecture of ${projectName}?`,
+          `Architecture: ${scanResult.architecture.join(', ')}`,
+          'architecture',
+          false
+        );
+        scannedEntries++;
+      }
+
+      // Contribute database info
+      if (scanResult.database) {
+        await contributeProject(
+          result.user_id,
+          projectId,
+          `What database does ${projectName} use?`,
+          `Database: ${scanResult.database}`,
+          'database',
+          false
+        );
+        scannedEntries++;
+      }
+
+      // Contribute build system
+      if (scanResult.build_system) {
+        await contributeProject(
+          result.user_id,
+          projectId,
+          `What build system does ${projectName} use?`,
+          `Build system: ${scanResult.build_system}`,
+          'tooling',
+          false
+        );
+        scannedEntries++;
+      }
+    } catch (error) {
+      console.error('Scanner error:', error);
+      // Continue even if scan fails
+    }
+  }
+
   return {
     step: 'confirm_setup',
     message: storageChoice === 'cloud'
-      ? `Hive active with 10x limits. Your project knowledge syncs wherever you go, and your solutions help improve Hivemind for everyone. User ID: ${result.user_id} (save this)`
+      ? `Hive active with 10x limits. Your project knowledge syncs wherever you go, and your solutions help improve Hivemind for everyone. User ID: ${result.user_id} (save this)${scannedEntries > 0 ? `. Scanned and added ${scannedEntries} foundational entries.` : ''}`
       : 'Hive active. Knowledge stays private on this machine.',
     user_id: result.user_id,
     project_id: result.project_id,
-    storage_type: storageChoice
+    storage_type: storageChoice,
+    scanned_entries: scannedEntries
   };
 }

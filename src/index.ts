@@ -210,7 +210,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "init_hive",
         description:
-          "Guided setup for project knowledge base (hive). Call without storage_choice first to get options, then call again with user's choice. Detects project info automatically.",
+          "Guided setup for project knowledge base (hive). Call without storage_choice first to get options, then call again with user's choice. Auto-scans project and contributes foundational knowledge (tech stack, architecture, database, build system).",
         inputSchema: {
           type: "object",
           properties: {
@@ -226,6 +226,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               enum: ["cloud", "local"],
               description: "User's storage choice (omit on first call to get options)",
+            },
+            project_path: {
+              type: "string",
+              description: "Absolute path to project directory (for scanning). Defaults to current working directory if not provided.",
             },
           },
           required: ["project_id", "project_name"],
@@ -330,7 +334,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const result = await initHive(
         args?.project_id as string,
         args?.project_name as string,
-        args?.storage_choice as 'cloud' | 'local' | undefined
+        args?.storage_choice as 'cloud' | 'local' | undefined,
+        args?.project_path as string | undefined
       );
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
