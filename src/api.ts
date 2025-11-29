@@ -335,17 +335,15 @@ async function scanProject(projectPath: string): Promise<ProjectScanResult> {
     categories: ['tech-stack', 'architecture']
   };
 
+  // Try Node.js (package.json)
   try {
-    // Read package.json
     const pkgPath = path.join(projectPath, 'package.json');
     const pkgContent = await fs.readFile(pkgPath, 'utf-8');
     const pkg = JSON.parse(pkgContent);
 
-    // Extract metadata
     result.description = pkg.description;
     result.version = pkg.version;
 
-    // Detect tech stack from dependencies
     const allDeps = {
       ...pkg.dependencies,
       ...pkg.devDependencies
@@ -365,32 +363,141 @@ async function scanProject(projectPath: string): Promise<ProjectScanResult> {
       result.categories.push('supabase-backend');
     }
 
-    // Detect from package.json scripts
     if (pkg.scripts?.build?.includes('tsc')) {
       result.build_system = 'TypeScript compiler (tsc)';
     }
 
-    // Check for supabase directory
-    try {
-      const supabasePath = path.join(projectPath, 'supabase');
-      const supabaseStats = await fs.stat(supabasePath);
-      if (supabaseStats.isDirectory()) {
-        result.database = 'PostgreSQL (Supabase)';
-        result.architecture.push('Supabase edge functions');
-        result.categories.push('database', 'edge-functions');
-      }
-    } catch {
-      // No supabase directory
-    }
-
-    // Detect Node.js
     if (pkg.engines?.node || pkg.scripts) {
       result.tech_stack.push('Node.js');
     }
+  } catch {
+    // No package.json, try other project types
+  }
 
-  } catch (error) {
-    // If can't read package.json, return minimal result
-    console.error('Scan error:', error);
+  // Try Go (go.mod)
+  try {
+    const goModPath = path.join(projectPath, 'go.mod');
+    const goModContent = await fs.readFile(goModPath, 'utf-8');
+
+    // Extract Go version
+    const versionMatch = goModContent.match(/^go\s+([\d.]+)/m);
+    if (versionMatch) {
+      result.tech_stack.push(`Go ${versionMatch[1]}`);
+      result.version = versionMatch[1];
+    }
+
+    // Extract module name (first line)
+    const moduleMatch = goModContent.match(/^module\s+(.+)/m);
+    if (moduleMatch && !result.description) {
+      result.description = `Go module: ${moduleMatch[1]}`;
+    }
+
+    // Detect common Go libraries
+    if (goModContent.includes('github.com/gorilla/mux')) {
+      result.architecture.push('HTTP server (gorilla/mux)');
+    }
+    if (goModContent.includes('github.com/gin-gonic/gin')) {
+      result.architecture.push('HTTP server (Gin)');
+    }
+    if (goModContent.includes('github.com/mattn/go-sqlite3')) {
+      result.database = 'SQLite';
+      result.categories.push('database');
+    }
+    if (goModContent.includes('github.com/lib/pq') || goModContent.includes('gorm.io/driver/postgres')) {
+      result.database = 'PostgreSQL';
+      result.categories.push('database');
+    }
+    if (goModContent.includes('go-sql-driver/mysql')) {
+      result.database = 'MySQL';
+      result.categories.push('database');
+    }
+
+    result.build_system = 'go build';
+  } catch {
+    // No go.mod
+  }
+
+  // Try Python (requirements.txt or pyproject.toml)
+  try {
+    const reqPath = path.join(projectPath, 'requirements.txt');
+    const reqContent = await fs.readFile(reqPath, 'utf-8');
+
+    result.tech_stack.push('Python');
+
+    if (reqContent.includes('django')) {
+      result.architecture.push('Django framework');
+    }
+    if (reqContent.includes('flask')) {
+      result.architecture.push('Flask framework');
+    }
+    if (reqContent.includes('fastapi')) {
+      result.architecture.push('FastAPI framework');
+    }
+    if (reqContent.includes('sqlalchemy')) {
+      result.categories.push('database');
+    }
+  } catch {
+    // Try pyproject.toml
+    try {
+      const pyprojectPath = path.join(projectPath, 'pyproject.toml');
+      await fs.stat(pyprojectPath);
+      result.tech_stack.push('Python');
+      result.build_system = 'pyproject.toml';
+    } catch {
+      // No Python project
+    }
+  }
+
+  // Try Rust (Cargo.toml)
+  try {
+    const cargoPath = path.join(projectPath, 'Cargo.toml');
+    const cargoContent = await fs.readFile(cargoPath, 'utf-8');
+
+    result.tech_stack.push('Rust');
+    result.build_system = 'cargo';
+
+    // Extract version
+    const versionMatch = cargoContent.match(/^version\s*=\s*"([^"]+)"/m);
+    if (versionMatch) {
+      result.version = versionMatch[1];
+    }
+  } catch {
+    // No Cargo.toml
+  }
+
+  // Check for Supabase directory (any project type)
+  try {
+    const supabasePath = path.join(projectPath, 'supabase');
+    const supabaseStats = await fs.stat(supabasePath);
+    if (supabaseStats.isDirectory()) {
+      if (!result.database) result.database = 'PostgreSQL (Supabase)';
+      result.architecture.push('Supabase edge functions');
+      result.categories.push('database', 'edge-functions');
+    }
+  } catch {
+    // No supabase directory
+  }
+
+  // Check for README to extract description if not set
+  if (!result.description) {
+    try {
+      const readmePath = path.join(projectPath, 'README.md');
+      const readmeContent = await fs.readFile(readmePath, 'utf-8');
+
+      // Extract first heading or first paragraph
+      const headingMatch = readmeContent.match(/^#\s+(.+)$/m);
+      if (headingMatch) {
+        result.description = headingMatch[1];
+      } else {
+        // Get first non-empty line
+        const lines = readmeContent.split('\n').filter(l => l.trim());
+        if (lines.length > 0) {
+          result.description = lines[0].substring(0, 200);
+        }
+      }
+    } catch {
+      // No README
+    }
   }
 
   return result;
