@@ -1,0 +1,4 @@
+# Supabase config for hivemind-mcp
+
+[functions.public]
+verify_jwt = false

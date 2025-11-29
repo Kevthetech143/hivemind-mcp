@@ -5,7 +5,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { searchKnowledgeBase, reportOutcome, contributeSOlution, listSkills, getSkill } from "./api.js";
+import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills } from "./api.js";
 
 const server = new Server(
   {
@@ -83,17 +83,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
-        name: "list_skills",
+        name: "search_skills",
         description:
-          "List all available skills in the knowledge base, optionally filtered by category. Skills are executable step-by-step guides.",
+          "Search for skills by topic/keyword. Returns lightweight summaries - use get_skill() for full details.",
         inputSchema: {
           type: "object",
           properties: {
-            category: {
+            query: {
               type: "string",
-              description: "Optional: Filter skills by category (e.g., 'claude-code', 'python', 'docker')",
+              description: "Topic or keyword to search for (e.g., 'deployment', 'testing', 'CI/CD')",
             },
           },
+          required: ["query"],
         },
       },
       {
@@ -109,6 +110,15 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ["skill_id"],
+        },
+      },
+      {
+        name: "count_skills",
+        description:
+          "Get total count of skills in the database.",
+        inputSchema: {
+          type: "object",
+          properties: {},
         },
       },
     ],
@@ -138,7 +148,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case "contribute_solution": {
-      const result = await contributeSOlution(
+      const result = await contributeSolution(
         args?.query as string,
         args?.solution as string,
         args?.category as string | undefined
@@ -148,8 +158,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
 
-    case "list_skills": {
-      const result = await listSkills(args?.category as string | undefined);
+    case "search_skills": {
+      const result = await searchSkills(args?.query as string);
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
@@ -157,6 +167,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "get_skill": {
       const result = await getSkill(args?.skill_id as number);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case "count_skills": {
+      const result = await countSkills();
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };

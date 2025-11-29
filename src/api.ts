@@ -1,10 +1,10 @@
 /**
  * Hivemind API client
- * Connects to the hivemind backend API
+ * Connects to the hivemind public gateway (no auth required)
  */
 
-const API_BASE = process.env.HIVEMIND_API_URL || "https://ksethrexopllfhyrxlrb.supabase.co/functions/v1";
-const API_KEY = process.env.HIVEMIND_API_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzZXRocmV4b3BsbGZoeXJ4bHJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NDU4ODksImV4cCI6MjA3OTMyMTg4OX0.SDJulNaemJ66EaFl77-1IJLTAleihU5PvEChNaO5osI";
+// Public gateway - no API key needed
+const API_BASE = process.env.HIVEMIND_API_URL || "https://ksethrexopllfhyrxlrb.supabase.co/functions/v1/public";
 
 interface SearchResult {
   query: string;
@@ -39,7 +39,6 @@ export async function searchKnowledgeBase(query: string): Promise<SearchResult> 
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(API_KEY && { Authorization: `Bearer ${API_KEY}` }),
     },
     body: JSON.stringify({ query }),
   });
@@ -58,11 +57,10 @@ export async function reportOutcome(
   solutionId: number | undefined,
   outcome: "success" | "failure"
 ): Promise<OutcomeResult> {
-  const response = await fetch(`${API_BASE}/outcome`, {
+  const response = await fetch(`${API_BASE}/report`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(API_KEY && { Authorization: `Bearer ${API_KEY}` }),
     },
     body: JSON.stringify({ solution_id: solutionId, outcome }),
   });
@@ -76,8 +74,9 @@ export async function reportOutcome(
 
 /**
  * Contribute a new solution
+ * Note: Server-side credential scanning will reject solutions containing secrets
  */
-export async function contributeSOlution(
+export async function contributeSolution(
   query: string,
   solution: string,
   category?: string
@@ -86,71 +85,83 @@ export async function contributeSOlution(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(API_KEY && { Authorization: `Bearer ${API_KEY}` }),
     },
     body: JSON.stringify({ query, solution, category }),
   });
 
   if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    if (errorBody.detected_patterns) {
+      throw new Error(`Contribution rejected: Contains sensitive data (${errorBody.detected_patterns.join(', ')}). Please remove credentials before submitting.`);
+    }
     throw new Error(`Contribution failed: ${response.statusText}`);
   }
 
   return response.json();
 }
 
-interface SkillListResult {
-  action: string;
-  type: string;
-  flows: Array<{
+interface SkillSearchResult {
+  query: string;
+  skills: Array<{
     id: number;
-    query: string;
+    title: string;
     category: string;
-    solutions?: any;
-    common_pitfalls?: string;
-    created_at?: string;
+    preview: string;
+    relevance: number;
   }>;
-  total_count: number;
-  categories: string[];
+  total: number;
+  tip: string;
 }
 
 interface SkillDetailResult {
-  action: string;
-  flow: {
-    id: number;
-    query: string;
-    category: string;
-    solutions?: any;
-    common_pitfalls?: string;
-    prerequisites?: string;
-    success_indicators?: string;
-    executable?: any;
-    executable_type?: string;
-    preview_summary?: string;
-    view_count?: number;
-    created_at?: string;
-  };
+  id: number;
+  query: string;
+  category: string;
+  solutions?: any;
+  common_pitfalls?: string;
+  prerequisites?: string;
+  success_indicators?: string;
+  executable?: any;
+  executable_type?: string;
+  preview_summary?: string;
+  view_count?: number;
+  created_at?: string;
 }
 
 /**
- * List all skills (optionally filtered by category)
+ * Search skills by query - returns lightweight summaries
+ * Use getSkill() to get full details for a specific skill
  */
-export async function listSkills(category?: string): Promise<SkillListResult> {
-  const response = await fetch(`${API_BASE}/flows`, {
+export async function searchSkills(query: string, maxResults: number = 20): Promise<SkillSearchResult> {
+  const response = await fetch(`${API_BASE}/search-skills`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(API_KEY && { Authorization: `Bearer ${API_KEY}` }),
     },
-    body: JSON.stringify({
-      action: "list",
-      type: "skill",
-      category: category || null,
-      limit: 100,
-    }),
+    body: JSON.stringify({ query, max_results: maxResults }),
   });
 
   if (!response.ok) {
-    throw new Error(`List skills failed: ${response.statusText}`);
+    throw new Error(`Search skills failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Count total skills in database
+ */
+export async function countSkills(): Promise<{ total: number }> {
+  const response = await fetch(`${API_BASE}/count-skills`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({}),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Count skills failed: ${response.statusText}`);
   }
 
   return response.json();
@@ -160,17 +171,12 @@ export async function listSkills(category?: string): Promise<SkillListResult> {
  * Get a specific skill by ID
  */
 export async function getSkill(skillId: number): Promise<SkillDetailResult> {
-  const response = await fetch(`${API_BASE}/flows`, {
+  const response = await fetch(`${API_BASE}/skill`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(API_KEY && { Authorization: `Bearer ${API_KEY}` }),
     },
-    body: JSON.stringify({
-      action: "get",
-      type: "skill",
-      flow_id: skillId,
-    }),
+    body: JSON.stringify({ skill_id: skillId }),
   });
 
   if (!response.ok) {
