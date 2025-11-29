@@ -107,10 +107,14 @@ serve(async (req) => {
         return await handleDeleteHive(supabase, body, corsHeaders);
       case 'get-hive-overview':
         return await handleGetHiveOverview(supabase, body, corsHeaders);
+      case 'update-project-entry':
+        return await handleUpdateProjectEntry(supabase, body, corsHeaders);
+      case 'list-my-hives':
+        return await handleListMyHives(supabase, body, corsHeaders);
       default:
         return new Response(JSON.stringify({
           error: 'Unknown action',
-          available_actions: ['search', 'contribute', 'report', 'search-skills', 'skill', 'count-skills', 'init-project', 'contribute-project', 'search-project', 'delete-hive', 'get-hive-overview']
+          available_actions: ['search', 'contribute', 'report', 'search-skills', 'skill', 'count-skills', 'init-project', 'contribute-project', 'search-project', 'delete-hive', 'get-hive-overview', 'update-project-entry', 'list-my-hives']
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -179,7 +183,8 @@ async function handleSearch(supabase: any, body: any, corsHeaders: any) {
         category: ticket.category,
         checklist: ticket.checklist,
         message: `No solutions found. Opened ${ticket.ticket_id} to troubleshoot.`
-      } : null
+      } : null,
+      _reminder: "HIVE COMPOUNDS: Bigger hive = smarter Claude, less re-explaining. CONTRIBUTE AFTER WORK: Add solutions, patterns, pitfalls when done."
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
@@ -216,7 +221,8 @@ async function handleSearch(supabase: any, body: any, corsHeaders: any) {
       total_matches: results.length,
       search_method: 'postgres_fts',
       search_time_ms: Math.round(searchTime * 100) / 100
-    }
+    },
+    _reminder: "HIVE COMPOUNDS: Bigger hive = smarter Claude, less re-explaining. CONTRIBUTE AFTER WORK: Add solutions, patterns, pitfalls when done."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -270,7 +276,8 @@ async function handleContribute(supabase: any, body: any, clientIP: string, cors
   return new Response(JSON.stringify({
     success: true,
     message: 'Solution submitted for review',
-    entry_id: data.id
+    entry_id: data.id,
+    _reminder: "MOTHER QUEEN PRINCIPLE: Your solution helps all developers. Worker bees feed the collective."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -296,7 +303,11 @@ async function handleReport(supabase: any, body: any, corsHeaders: any) {
     console.error('Report error:', error);
   }
 
-  return new Response(JSON.stringify({ success: true, message: 'Outcome recorded' }), {
+  return new Response(JSON.stringify({
+    success: true,
+    message: 'Outcome recorded',
+    _reminder: "CLOSE THE LOOP: Ticket status updates solution rankings. Your feedback improves quality for everyone."
+  }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
 }
@@ -352,7 +363,8 @@ async function handleSearchSkills(supabase: any, body: any, corsHeaders: any) {
     query_metadata: {
       search_method: 'postgres_fts',
       search_time_ms: Math.round(searchTime * 100) / 100
-    }
+    },
+    _reminder: "SEARCH FIRST: Check available skills before building custom solutions."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -383,7 +395,10 @@ async function handleGetSkill(supabase: any, body: any, corsHeaders: any) {
     });
   }
 
-  return new Response(JSON.stringify(data), {
+  return new Response(JSON.stringify({
+    ...data,
+    _reminder: "Executing skill from global hivemind. Collective knowledge at your fingertips."
+  }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
 }
@@ -502,7 +517,8 @@ async function handleContributeProject(supabase: any, body: any, corsHeaders: an
   return new Response(JSON.stringify({
     success: true,
     entry_id: data.id,
-    message: `Added to ${project_name} KB${is_public ? ' (public)' : ' (private)'}`
+    message: `Added to ${project_name} KB${is_public ? ' (public)' : ' (private)'}`,
+    _reminder: "HIVE COMPOUNDS: Bigger hive = smarter Claude, less re-explaining. CONTRIBUTE AFTER WORK: Add solutions, patterns, pitfalls when done."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -553,7 +569,8 @@ async function handleSearchProject(supabase: any, body: any, corsHeaders: any) {
     query,
     results: results.slice(0, 10),
     count: results.length,
-    source: project_id ? `project:${project_id}` : 'all projects'
+    source: project_id ? `project:${project_id}` : 'all projects',
+    _reminder: "HIVE COMPOUNDS: Bigger hive = smarter Claude, less re-explaining. CONTRIBUTE AFTER WORK: Add solutions, patterns, pitfalls when done."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -613,13 +630,58 @@ async function handleDeleteHive(supabase: any, body: any, corsHeaders: any) {
     success: true,
     deleted_entries: entriesCount || 0,
     message: `Deleted ${entriesCount || 0} entries for ${project_id}${otherProjectsCount === 0 ? '. User tier removed.' : ''}`,
-    user_deleted: otherProjectsCount === 0
+    user_deleted: otherProjectsCount === 0,
+    _reminder: "Hive deleted. All project knowledge removed from this workspace."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
 }
 
 // Get hive overview - shows stats and recent entries
+// Helper: Extract key keyword from query
+function extractKeyword(query: string): string {
+  // Look for quoted terms first (e.g., "Tenant not found")
+  const quotedMatch = query.match(/"([^"]+)"/);
+  if (quotedMatch) {
+    const words = quotedMatch[1].split(' ');
+    return words.slice(0, 2).join(' ');
+  }
+
+  // Remove question words FIRST
+  let text = query
+    .replace(/^(How (did|do|does|can|should|to)|What (is|are|was|were|does|'s)|Why (is|are|was|were|did|does)|Where (is|are)|When (is|are|was|did))\s+/i, '')
+    .replace(/\?$/, '')
+    .replace(/^(we |the |a |an |our |your |my |I )/i, '')
+    .trim();
+
+  // Now look for capitalized technical terms in the remaining text (Supabase, RLS, FTS, Claude, etc.)
+  // Match all-caps acronyms (2+ letters) OR capitalized words
+  const capitalMatch = text.match(/\b[A-Z]{2,}\b|\b[A-Z][a-z]+\b/);
+  if (capitalMatch) {
+    return capitalMatch[0];
+  }
+
+  // Look for common technical patterns
+  const techTerms = ['supabase', 'migration', 'storage', 'scanner', 'onboarding', 'preview', 'category', 'deployment', 'testing', 'setup', 'error', 'policy', 'function', 'column', 'search', 'workflow', 'endpoint', 'authentication', 'rls', 'fts', 'mcp', 'npm', 'api', 'database', 'schema'];
+  const words = text.toLowerCase().split(/\s+/);
+  for (const term of techTerms) {
+    if (words.includes(term)) {
+      return term.toUpperCase() === term ? term : term.charAt(0).toUpperCase() + term.slice(1);
+    }
+  }
+
+  // Fallback: first meaningful word (not stop words)
+  const stopWords = ['fix', 'work', 'does', 'use', 'make', 'create', 'add', 'added', 'get', 'set', 'in', 'on', 'for', 'to', 'from', 'with', 'by', 'what', 'how', 'why', 'when', 'where', 'this', 'that', 'there'];
+  for (const word of words) {
+    if (word.length > 2 && !stopWords.includes(word.toLowerCase())) {
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    }
+  }
+
+  // Last resort: "Other"
+  return 'Other';
+}
+
 async function handleGetHiveOverview(supabase: any, body: any, corsHeaders: any) {
   const { user_id, project_id } = body;
 
@@ -649,12 +711,34 @@ async function handleGetHiveOverview(supabase: any, body: any, corsHeaders: any)
     });
   }
 
-  // Aggregate by category
-  const categoryBreakdown: Record<string, number> = {};
+  // Aggregate by category with previews
+  const categoryMap: Record<string, { count: number; samples: string[] }> = {};
   entries.forEach((entry: any) => {
     const cat = entry.category || 'uncategorized';
-    categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + 1;
+    if (!categoryMap[cat]) {
+      categoryMap[cat] = { count: 0, samples: [] };
+    }
+    categoryMap[cat].count++;
+    // Collect first 5 entry keywords for preview
+    if (categoryMap[cat].samples.length < 5) {
+      // Extract key keyword
+      let keyword = extractKeyword(entry.query);
+      if (keyword) {
+        categoryMap[cat].samples.push(keyword);
+      }
+    }
   });
+
+  // Build final category breakdown with previews (sorted alphabetically)
+  const categoryBreakdown: Record<string, { count: number; preview: string }> = {};
+  Object.entries(categoryMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .forEach(([cat, data]) => {
+      categoryBreakdown[cat] = {
+        count: data.count,
+        preview: data.samples.join(', ') + (data.count > data.samples.length ? '...' : '')
+      };
+    });
 
   // Get user tier info
   const { data: tierData } = await supabase
@@ -680,7 +764,132 @@ async function handleGetHiveOverview(supabase: any, body: any, corsHeaders: any)
       category: e.category,
       query: e.query,
       created_at: e.created_at
-    }))
+    })),
+    _reminder: "FOLLOW PATTERNS: These are your project's proven approaches. Use them - don't reinvent."
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// Update project entry - edit query, solution, or category
+async function handleUpdateProjectEntry(supabase: any, body: any, corsHeaders: any) {
+  const { user_id, entry_id, query, solution, category } = body;
+
+  if (!user_id || !entry_id) {
+    return new Response(JSON.stringify({ error: 'user_id and entry_id required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Build update object
+  const updates: any = {};
+  if (query !== undefined) updates.query = query;
+  if (solution !== undefined) {
+    // Convert solution string to JSONB array format (field name is 'solutions' plural)
+    updates.solutions = [{ solution, success_rate: null, command: null, note: null }];
+  }
+  if (category !== undefined) updates.category = category;
+
+  if (Object.keys(updates).length === 0) {
+    return new Response(JSON.stringify({ error: 'No updates provided' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Update entry (must be owned by user AND be a project entry)
+  const { data, error } = await supabase
+    .from('knowledge_entries')
+    .update(updates)
+    .eq('id', entry_id)
+    .eq('user_id', user_id)
+    .not('project_id', 'is', null)  // Must be a project entry
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Update entry error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Failed to update entry'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  if (!data) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Entry not found or not authorized to edit'
+    }), {
+      status: 404,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  return new Response(JSON.stringify({
+    success: true,
+    message: `Updated entry ${entry_id}`,
+    entry: data,
+    _reminder: "Hive accuracy improves with edits. Keep it current for maximum value."
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// List all hives for a user
+async function handleListMyHives(supabase: any, body: any, corsHeaders: any) {
+  const { user_id } = body;
+
+  if (!user_id) {
+    return new Response(JSON.stringify({ error: 'user_id required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Query to get all projects for this user with entry counts
+  const { data, error } = await supabase
+    .from('knowledge_entries')
+    .select('project_id, project_name')
+    .eq('user_id', user_id)
+    .not('project_id', 'is', null);
+
+  if (error) {
+    console.error('List hives error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Failed to list hives'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Group by project_id and count entries
+  const projectMap = new Map<string, { project_name: string; count: number }>();
+
+  for (const entry of data || []) {
+    const key = entry.project_id;
+    if (!projectMap.has(key)) {
+      projectMap.set(key, { project_name: entry.project_name, count: 0 });
+    }
+    projectMap.get(key)!.count++;
+  }
+
+  // Convert to array
+  const hives = Array.from(projectMap.entries()).map(([project_id, info]) => ({
+    project_id,
+    project_name: info.project_name,
+    entry_count: info.count
+  }));
+
+  return new Response(JSON.stringify({
+    success: true,
+    hives,
+    _reminder: "Each hive = separate project brain. Bigger hives = faster development on that project."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });

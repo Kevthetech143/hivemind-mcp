@@ -5,12 +5,12 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills, initProjectKB, contributeProject, searchProject, initHive, deleteHive, getHiveOverview } from "./api.js";
+import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills, initProjectKB, contributeProject, searchProject, initHive, deleteHive, getHiveOverview, updateProjectEntry, listMyHives } from "./api.js";
 
 const server = new Server(
   {
     name: "hivemind-mcp",
-    version: "0.1.0",
+    version: "1.9.0",
   },
   {
     capabilities: {
@@ -285,6 +285,60 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["user_id", "project_id"],
         },
       },
+      {
+        name: "update_project_entry",
+        description:
+          "Update an existing project hive entry. Can edit query, solution, or category. Only works for project entries (not global hivemind KB).",
+        inputSchema: {
+          type: "object",
+          properties: {
+            user_id: {
+              type: "string",
+              description: "User ID (must own the entry)",
+            },
+            entry_id: {
+              type: "number",
+              description: "ID of the entry to update (from search results)",
+            },
+            query: {
+              type: "string",
+              description: "Optional: New query text",
+            },
+            solution: {
+              type: "string",
+              description: "Optional: New solution text",
+            },
+            category: {
+              type: "string",
+              description: "Optional: New category name",
+            },
+            project_path: {
+              type: "string",
+              description: "Optional: Project directory path (required for local storage)",
+            },
+          },
+          required: ["user_id", "entry_id"],
+        },
+      },
+      {
+        name: "list_my_hives",
+        description:
+          "List all project hives for a user. Returns project_id, project_name, and entry count for each hive.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            user_id: {
+              type: "string",
+              description: "User ID to list hives for",
+            },
+            project_path: {
+              type: "string",
+              description: "Optional: Project directory path (for local storage)",
+            },
+          },
+          required: ["user_id"],
+        },
+      },
     ],
   };
 });
@@ -408,6 +462,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const result = await getHiveOverview(
         args?.user_id as string,
         args?.project_id as string,
+        args?.project_path as string | undefined
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case "update_project_entry": {
+      const result = await updateProjectEntry(
+        args?.user_id as string,
+        args?.entry_id as number,
+        {
+          query: args?.query as string | undefined,
+          solution: args?.solution as string | undefined,
+          category: args?.category as string | undefined,
+        },
+        args?.project_path as string | undefined
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case "list_my_hives": {
+      const result = await listMyHives(
+        args?.user_id as string,
         args?.project_path as string | undefined
       );
       return {
