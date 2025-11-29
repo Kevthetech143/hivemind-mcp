@@ -176,6 +176,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "boolean",
               description: "Make this entry public (default: false/private)",
             },
+            project_path: {
+              type: "string",
+              description: "Optional: Project directory path (required for local storage)",
+            },
           },
           required: ["user_id", "project_id", "query", "solution"],
         },
@@ -202,6 +206,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             include_public: {
               type: "boolean",
               description: "Include public entries in results (default: true)",
+            },
+            project_path: {
+              type: "string",
+              description: "Optional: Project directory path (required for local storage)",
             },
           },
           required: ["user_id", "query"],
@@ -268,6 +276,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             project_id: {
               type: "string",
               description: "Project identifier",
+            },
+            project_path: {
+              type: "string",
+              description: "Optional: Project directory path (required for local storage)",
             },
           },
           required: ["user_id", "project_id"],
@@ -349,7 +361,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         args?.query as string,
         args?.solution as string,
         args?.category as string | undefined,
-        args?.is_public as boolean | undefined
+        args?.is_public as boolean | undefined,
+        args?.project_path as string | undefined
       );
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
@@ -361,7 +374,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         args?.user_id as string,
         args?.query as string,
         args?.project_id as string | undefined,
-        args?.include_public as boolean | undefined
+        args?.include_public as boolean | undefined,
+        args?.project_path as string | undefined
       );
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
@@ -393,7 +407,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "get_hive_overview": {
       const result = await getHiveOverview(
         args?.user_id as string,
-        args?.project_id as string
+        args?.project_id as string,
+        args?.project_path as string | undefined
       );
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

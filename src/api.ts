@@ -6,6 +6,55 @@
 // Public gateway - no API key needed
 const API_BASE = process.env.HIVEMIND_API_URL || "https://ksethrexopllfhyrxlrb.supabase.co/functions/v1/public";
 
+// Local storage interfaces and helpers
+interface LocalHiveEntry {
+  id: number;
+  query: string;
+  solution: string;
+  category: string;
+  created_at: string;
+}
+
+interface LocalHive {
+  storage_type: 'local';
+  user_id: string;
+  project_id: string;
+  project_name: string;
+  entries: LocalHiveEntry[];
+}
+
+async function readLocalHive(projectPath: string): Promise<LocalHive | null> {
+  const fs = await import('fs/promises');
+  const path = await import('path');
+
+  try {
+    const hivePath = path.join(projectPath, '.hive.json');
+    const content = await fs.readFile(hivePath, 'utf-8');
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+
+async function writeLocalHive(projectPath: string, hive: LocalHive): Promise<void> {
+  const fs = await import('fs/promises');
+  const path = await import('path');
+
+  const hivePath = path.join(projectPath, '.hive.json');
+  await fs.writeFile(hivePath, JSON.stringify(hive, null, 2), 'utf-8');
+}
+
+async function createLocalHive(projectPath: string, projectId: string, projectName: string, userId: string): Promise<void> {
+  const hive: LocalHive = {
+    storage_type: 'local',
+    user_id: userId,
+    project_id: projectId,
+    project_name: projectName,
+    entries: []
+  };
+  await writeLocalHive(projectPath, hive);
+}
+
 interface SearchResult {
   query: string;
   solutions: Solution[];
@@ -245,8 +294,35 @@ export async function contributeProject(
   query: string,
   solution: string,
   category?: string,
-  isPublic: boolean = false
+  isPublic: boolean = false,
+  projectPath?: string
 ): Promise<ContributeProjectResult> {
+  // Check if local storage
+  if (userId.startsWith('local-') && projectPath) {
+    const hive = await readLocalHive(projectPath);
+    if (!hive) {
+      throw new Error('Local hive not found. Run init_hive first.');
+    }
+
+    const newEntry: LocalHiveEntry = {
+      id: hive.entries.length + 1,
+      query,
+      solution,
+      category: category || 'general',
+      created_at: new Date().toISOString()
+    };
+
+    hive.entries.push(newEntry);
+    await writeLocalHive(projectPath, hive);
+
+    return {
+      success: true,
+      entry_id: newEntry.id,
+      message: `Added to ${projectId} hive (local)`
+    };
+  }
+
+  // Cloud storage - use API
   const response = await fetch(`${API_BASE}/contribute-project`, {
     method: "POST",
     headers: {
@@ -276,8 +352,38 @@ export async function searchProject(
   userId: string,
   query: string,
   projectId?: string,
-  includePublic: boolean = true
+  includePublic: boolean = true,
+  projectPath?: string
 ): Promise<SearchProjectResult> {
+  // Check if local storage
+  if (userId.startsWith('local-') && projectPath) {
+    const hive = await readLocalHive(projectPath);
+    if (!hive) {
+      return { query, results: [], count: 0, source: 'local (not found)' };
+    }
+
+    // Simple search: filter entries by query keywords
+    const queryLower = query.toLowerCase();
+    const results = hive.entries.filter(entry =>
+      entry.query.toLowerCase().includes(queryLower) ||
+      entry.solution.toLowerCase().includes(queryLower) ||
+      entry.category.toLowerCase().includes(queryLower)
+    ).map(entry => ({
+      query: entry.query,
+      solution: entry.solution,
+      category: entry.category,
+      created_at: entry.created_at
+    }));
+
+    return {
+      query,
+      results,
+      count: results.length,
+      source: `local:${projectId}`
+    };
+  }
+
+  // Cloud storage - use API
   const response = await fetch(`${API_BASE}/search-project`, {
     method: "POST",
     headers: {
@@ -351,8 +457,47 @@ interface GetHiveOverviewResult {
  */
 export async function getHiveOverview(
   userId: string,
-  projectId: string
+  projectId: string,
+  projectPath?: string
 ): Promise<GetHiveOverviewResult> {
+  // Check if local storage
+  if (userId.startsWith('local-') && projectPath) {
+    const hive = await readLocalHive(projectPath);
+    if (!hive) {
+      throw new Error('Local hive not found');
+    }
+
+    // Aggregate by category
+    const categoryBreakdown: Record<string, number> = {};
+    hive.entries.forEach(entry => {
+      const cat = entry.category || 'uncategorized';
+      categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + 1;
+    });
+
+    // Get recent entries (last 10)
+    const recentEntries = hive.entries
+      .slice(-10)
+      .reverse()
+      .map(e => ({
+        category: e.category,
+        query: e.query,
+        created_at: e.created_at
+      }));
+
+    return {
+      success: true,
+      project_name: hive.project_name,
+      project_id: hive.project_id,
+      user_id: hive.user_id,
+      storage_type: 'local',
+      rate_limit: 100,
+      total_entries: hive.entries.length,
+      category_breakdown: categoryBreakdown,
+      recent_entries: recentEntries
+    };
+  }
+
+  // Cloud storage - use API
   const response = await fetch(`${API_BASE}/get-hive-overview`, {
     method: "POST",
     headers: {
@@ -608,7 +753,19 @@ export async function initHive(
   }
 
   // Step 2: User chose, initialize
-  const result = await initProjectKB(projectId, projectName, storageChoice);
+  let result;
+
+  if (storageChoice === 'local') {
+    // Create local .hive.json file
+    const userId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    if (projectPath) {
+      await createLocalHive(projectPath, projectId, projectName, userId);
+    }
+    result = { user_id: userId, project_id: projectId, project_name: projectName };
+  } else {
+    // Use cloud storage (Supabase)
+    result = await initProjectKB(projectId, projectName, storageChoice);
+  }
 
   let scannedEntries = 0;
   let scanResult: ProjectScanResult | undefined;
@@ -632,7 +789,8 @@ export async function initHive(
           `What is ${projectName}? Give me a project overview.`,
           overviewParts.join('. '),
           'project-overview',
-          false
+          false,
+          projectPath
         );
         scannedEntries++;
       }
@@ -645,7 +803,8 @@ export async function initHive(
           `What is the tech stack for ${projectName}?`,
           `Tech stack: ${scanResult.tech_stack.join(', ')}`,
           'tech-stack',
-          false
+          false,
+          projectPath
         );
         scannedEntries++;
       }
@@ -658,7 +817,8 @@ export async function initHive(
           `What is the architecture of ${projectName}?`,
           `Architecture: ${scanResult.architecture.join(', ')}`,
           'architecture',
-          false
+          false,
+          projectPath
         );
         scannedEntries++;
       }
@@ -671,7 +831,8 @@ export async function initHive(
           `What database does ${projectName} use?`,
           `Database: ${scanResult.database}`,
           'database',
-          false
+          false,
+          projectPath
         );
         scannedEntries++;
       }
@@ -684,7 +845,8 @@ export async function initHive(
           `What build system does ${projectName} use?`,
           `Build system: ${scanResult.build_system}`,
           'tooling',
-          false
+          false,
+          projectPath
         );
         scannedEntries++;
       }
@@ -721,11 +883,15 @@ For maximum impact, add this to your CLAUDE.md:
 2. After every session: "update hive" (Claude adds entries for you)
 3. Keep it current - run "update hive" after major changes
 
-Bigger hive = Smarter Claude = Faster development. Your project knowledge compounds over time.`;
+Bigger hive = Smarter Claude = Faster development. Your project knowledge compounds over time.
+
+Want to see your current hive? Say "show me my hive"`;
+
+  const localStoragePath = storageChoice === 'local' ? `${projectPath}/.hive.json` : null;
 
   const statusMessage = storageChoice === 'cloud'
-    ? `Hive active with 10x limits. Your project knowledge syncs wherever you go, and your solutions help improve Hivemind for everyone. User ID: ${result.user_id} (save this)${scannedEntries > 0 ? `. Scanned and added ${scannedEntries} foundational entries to ${storageLocation}.` : ''}`
-    : `Hive active. Knowledge stays private on this machine. User ID: ${result.user_id} (save this)${scannedEntries > 0 ? `. Scanned and added ${scannedEntries} foundational entries to ${storageLocation}.` : ''}`;
+    ? `Hive active with 10x limits. Your project knowledge syncs wherever you go, and your solutions help improve Hivemind for everyone. User ID: ${result.user_id} (save this)${scannedEntries > 0 ? `. Scanned and added ${scannedEntries} foundational entries to Supabase cloud database.` : ''}`
+    : `Hive active. Knowledge stays private on this machine. User ID: ${result.user_id} (save this)${scannedEntries > 0 ? `. Scanned and added ${scannedEntries} foundational entries to ${localStoragePath}.` : ''}`;
 
   return {
     step: 'confirm_setup',
