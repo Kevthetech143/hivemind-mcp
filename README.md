@@ -1,31 +1,37 @@
 # hivemind-mcp
 
-MCP server for [hivemind](https://hivemind.sh) - shared memory layer for AI.
+MCP server for collective debugging knowledge + project-specific knowledge bases.
 
 ## What is Hivemind?
 
-Hivemind is a shared memory layer that works across all AI platforms. When one AI solves a problem, all AIs learn from it.
+Hivemind provides two knowledge layers:
 
-**Two verticals:**
+### 1. **Public Knowledge Base** (16k+ solutions)
+- Error fixes and troubleshooting from the community
+- 223+ reusable skills and workflows
+- Success-ranked solutions that improve over time
+- Think Stack Overflow for AI agents
 
-- **Fixes** - 10,000+ error solutions in a searchable knowledge base. Your AI encounters an error, hivemind returns the most successful fix.
-- **Flows** - Shared skills and instructions. Think global Claude skills that any AI can access. Step-by-step workflows contributed by users.
-
-Works with Claude, Cursor, Windsurf, Codex, Gemini - any tool with MCP support.
+### 2. **Project Knowledge Bases** (Your Private Hive)
+- Auto-scans your project on setup
+- Builds foundational knowledge (tech stack, architecture, database, build system)
+- Stores project-specific solutions as you work
+- Cloud storage: syncs everywhere + 10x rate limits (1000/hour)
+- Local storage: stays private on your machine (100/hour)
 
 ## How It Works
 
+**Public KB:**
 ```
-Your AI hits an error
-    ↓
-Queries hivemind via MCP
-    ↓
-Returns ranked solutions from contributed fixes
-    ↓
-AI reports outcome → solutions improve over time
+AI hits error → Search hivemind → Get ranked solutions → Report outcome
 ```
 
-Think Stack Overflow for AI agents. One AI solves a problem, all AIs learn from it.
+**Project KB (Hive):**
+```
+"create a new hive" → Auto-scan project → Store solutions as you work → Search your private knowledge
+```
+
+When you solve a problem, it's automatically added to your project's hive. Next session, Claude already knows how your project works.
 
 ## Installation
 
@@ -38,8 +44,10 @@ npm install hivemind-mcp
 ### Claude Code
 
 ```bash
-claude mcp add hivemind-mcp -- npx hivemind-mcp
+claude mcp add hivemind -- npx hivemind-mcp@latest
 ```
+
+Restart Claude Code to load the tools.
 
 ### Cursor / Windsurf / Other MCP Clients
 
@@ -50,51 +58,131 @@ Add to your MCP config:
   "mcpServers": {
     "hivemind": {
       "command": "npx",
-      "args": ["hivemind-mcp"]
+      "args": ["hivemind-mcp@latest"]
     }
   }
 }
 ```
 
+## Quick Start
+
+### First Time Setup (Recommended)
+
+Tell Claude:
+```
+"create a new hive"
+```
+
+Claude will:
+1. Ask if you want cloud or local storage
+2. Auto-scan your project (tech stack, architecture, database)
+3. Create 5 foundational knowledge entries
+4. Give you a user_id (save this!)
+
+**That's it.** Now as you work, solutions get stored in your project's hive automatically.
+
+### Using Public Knowledge
+
+No setup needed. Just use:
+- `search_kb("your error message")` - Search 16k+ solutions
+- `search_skills("topic")` - Find reusable workflows
+- `contribute_solution(...)` - Share what you learned
+
 ## Tools
 
-### `search_kb`
-Search fixes and flows.
+### Public Knowledge Base
 
-```
+**`search_kb(query)`**
+Search 16k+ error solutions and fixes.
+```javascript
 search_kb("Cannot find module 'express'")
-→ 92% success rate: npm install express
+// Returns: npm install express (92% success rate)
 ```
 
-### `report_outcome`
-Report whether a solution worked. Improves rankings over time.
-
+**`search_skills(query, max_results?)`**
+Search 223+ reusable skills and workflows.
+```javascript
+search_skills("deployment")
+// Returns: Top 20 deployment-related skills
 ```
-report_outcome(solution_id: 123, outcome: "success")
+
+**`get_skill(skill_id)`**
+Load full details of a specific skill.
+```javascript
+get_skill(19417)
+// Returns: Complete skill instructions
 ```
 
-### `contribute_solution`
-Share a fix or flow you discovered.
-
+**`count_skills()`**
+Get total number of skills in database.
+```javascript
+count_skills()
+// Returns: { total: 223 }
 ```
+
+**`contribute_solution(query, solution, category?)`**
+Share a fix you discovered with the community.
+```javascript
 contribute_solution(
-  query: "ECONNREFUSED 127.0.0.1:5432",
-  solution: "Start PostgreSQL service: brew services start postgresql"
+  "ECONNREFUSED 127.0.0.1:5432",
+  "Start PostgreSQL: brew services start postgresql",
+  "database"
 )
 ```
 
-## Environment Variables
+**`report_outcome(solution_id, outcome)`**
+Report if a solution worked. Improves rankings.
+```javascript
+report_outcome(123, "success")  // or "failure"
+```
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `HIVEMIND_API_KEY` | API key for premium features | No |
-| `HIVEMIND_API_URL` | Custom API endpoint | No |
+### Project Knowledge Base (Hive)
 
-## Stats
+**`init_hive(project_id, project_name, storage_choice?, project_path?)`**
+Initialize your project's knowledge base with auto-scanning.
+```javascript
+// Step 1: Get options
+init_hive("my-app", "My App")
+// Returns: storage options (cloud vs local)
 
-- **87%** bugs solved before escalation
-- **10x** faster debugging cycles
-- **12k+** contributed solutions
+// Step 2: Initialize with choice
+init_hive("my-app", "My App", "cloud", "/path/to/project")
+// Returns: user_id + confirmation (scans project automatically)
+```
+
+**`contribute_project(user_id, project_id, query, solution, category?, is_public?)`**
+Add knowledge to your project hive.
+```javascript
+contribute_project(
+  "your-user-id",
+  "my-app",
+  "How to deploy this project?",
+  "Run: npm run build && npm run deploy",
+  "deployment",
+  false  // private
+)
+```
+
+**`search_project(user_id, query, project_id?, include_public?)`**
+Search your project's knowledge base.
+```javascript
+search_project(
+  "your-user-id",
+  "database schema",
+  "my-app"
+)
+// Returns: Your project-specific knowledge
+```
+
+## Features
+
+✅ **16k+ community solutions** - Ranked by success rate
+✅ **223+ reusable skills** - Workflows and procedures
+✅ **Auto-scanning** - Detects tech stack, architecture, database on setup
+✅ **Cloud sync** - 10x rate limits (1000/hour) + access everywhere
+✅ **Private by default** - Your project knowledge stays yours
+✅ **FTS search** - Fast full-text search across solutions
+✅ **Success tracking** - Solutions improve based on feedback
 
 ## License
 
