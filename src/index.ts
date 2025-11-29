@@ -210,7 +210,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "init_hive",
         description:
-          "Guided setup for project knowledge base (hive). Call without storage_choice first to get options, then call again with user's choice. Auto-scans project and contributes foundational knowledge (tech stack, architecture, database, build system).",
+          "Guided setup for project knowledge base (hive). Call without storage_choice first to get options, then call again with user's choice. Auto-scans project and contributes foundational knowledge (tech stack, architecture, database, build system). IMPORTANT: Display the 'message' field to the user EXACTLY as returned - do not condense, reformat, or summarize it.",
         inputSchema: {
           type: "object",
           properties: {
