@@ -330,6 +330,47 @@ export async function deleteHive(
   return response.json();
 }
 
+interface GetHiveOverviewResult {
+  success: boolean;
+  project_name: string;
+  project_id: string;
+  user_id: string;
+  storage_type: string;
+  rate_limit: number;
+  total_entries: number;
+  category_breakdown: Record<string, number>;
+  recent_entries: Array<{
+    category: string;
+    query: string;
+    created_at: string;
+  }>;
+}
+
+/**
+ * Get hive overview - shows stats and recent entries
+ */
+export async function getHiveOverview(
+  userId: string,
+  projectId: string
+): Promise<GetHiveOverviewResult> {
+  const response = await fetch(`${API_BASE}/get-hive-overview`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      project_id: projectId
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Get hive overview failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 interface InitHiveResult {
   step: 'ask_storage' | 'confirm_setup';
   message: string;

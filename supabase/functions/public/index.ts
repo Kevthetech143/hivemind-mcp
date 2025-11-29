@@ -105,10 +105,12 @@ serve(async (req) => {
         return await handleSearchProject(supabase, body, corsHeaders);
       case 'delete-hive':
         return await handleDeleteHive(supabase, body, corsHeaders);
+      case 'get-hive-overview':
+        return await handleGetHiveOverview(supabase, body, corsHeaders);
       default:
         return new Response(JSON.stringify({
           error: 'Unknown action',
-          available_actions: ['search', 'contribute', 'report', 'search-skills', 'skill', 'count-skills', 'init-project', 'contribute-project', 'search-project', 'delete-hive']
+          available_actions: ['search', 'contribute', 'report', 'search-skills', 'skill', 'count-skills', 'init-project', 'contribute-project', 'search-project', 'delete-hive', 'get-hive-overview']
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -612,6 +614,73 @@ async function handleDeleteHive(supabase: any, body: any, corsHeaders: any) {
     deleted_entries: entriesCount || 0,
     message: `Deleted ${entriesCount || 0} entries for ${project_id}${otherProjectsCount === 0 ? '. User tier removed.' : ''}`,
     user_deleted: otherProjectsCount === 0
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// Get hive overview - shows stats and recent entries
+async function handleGetHiveOverview(supabase: any, body: any, corsHeaders: any) {
+  const { user_id, project_id } = body;
+
+  if (!user_id || !project_id) {
+    return new Response(JSON.stringify({ error: 'user_id and project_id required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Get all entries for this project
+  const { data: entries, error } = await supabase
+    .from('knowledge_entries')
+    .select('id, query, category, created_at, project_name')
+    .eq('user_id', user_id)
+    .eq('project_id', project_id)
+    .order('id', { ascending: false });
+
+  if (error) {
+    console.error('Get entries error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Failed to get hive entries'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Aggregate by category
+  const categoryBreakdown: Record<string, number> = {};
+  entries.forEach((entry: any) => {
+    const cat = entry.category || 'uncategorized';
+    categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + 1;
+  });
+
+  // Get user tier info
+  const { data: tierData } = await supabase
+    .from('contributor_tiers')
+    .select('tier, rate_limit')
+    .eq('user_id', user_id)
+    .single();
+
+  const storageType = tierData?.tier === 'cloud' ? 'cloud' : 'local';
+  const rateLimit = tierData?.rate_limit || 100;
+  const projectName = entries.length > 0 ? entries[0].project_name : project_id;
+
+  return new Response(JSON.stringify({
+    success: true,
+    project_name: projectName,
+    project_id,
+    user_id,
+    storage_type: storageType,
+    rate_limit: rateLimit,
+    total_entries: entries.length,
+    category_breakdown: categoryBreakdown,
+    recent_entries: entries.slice(0, 10).map((e: any) => ({
+      category: e.category,
+      query: e.query,
+      created_at: e.created_at
+    }))
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });

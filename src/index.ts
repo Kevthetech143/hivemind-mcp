@@ -5,7 +5,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills, initProjectKB, contributeProject, searchProject, initHive, deleteHive } from "./api.js";
+import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills, initProjectKB, contributeProject, searchProject, initHive, deleteHive, getHiveOverview } from "./api.js";
 
 const server = new Server(
   {
@@ -254,6 +254,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["user_id", "project_id"],
         },
       },
+      {
+        name: "get_hive_overview",
+        description:
+          "Get overview of project hive including total entries, category breakdown, and recent additions. Use when user says 'show me my hive' or 'hive overview'.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            user_id: {
+              type: "string",
+              description: "User ID from init_hive",
+            },
+            project_id: {
+              type: "string",
+              description: "Project identifier",
+            },
+          },
+          required: ["user_id", "project_id"],
+        },
+      },
     ],
   };
 });
@@ -363,6 +382,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "delete_hive": {
       const result = await deleteHive(
+        args?.user_id as string,
+        args?.project_id as string
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case "get_hive_overview": {
+      const result = await getHiveOverview(
         args?.user_id as string,
         args?.project_id as string
       );
