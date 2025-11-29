@@ -5,7 +5,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills, initProjectKB, contributeProject, searchProject } from "./api.js";
+import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills, initProjectKB, contributeProject, searchProject, initHive } from "./api.js";
 
 const server = new Server(
   {
@@ -207,6 +207,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["user_id", "query"],
         },
       },
+      {
+        name: "init_hive",
+        description:
+          "Guided setup for project knowledge base (hive). Call without storage_choice first to get options, then call again with user's choice. Detects project info automatically.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            project_id: {
+              type: "string",
+              description: "Project identifier (e.g., from package.json name or directory)",
+            },
+            project_name: {
+              type: "string",
+              description: "Human-readable project name",
+            },
+            storage_choice: {
+              type: "string",
+              enum: ["cloud", "local"],
+              description: "User's storage choice (omit on first call to get options)",
+            },
+          },
+          required: ["project_id", "project_name"],
+        },
+      },
     ],
   };
 });
@@ -296,6 +320,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         args?.query as string,
         args?.project_id as string | undefined,
         args?.include_public as boolean | undefined
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      };
+    }
+
+    case "init_hive": {
+      const result = await initHive(
+        args?.project_id as string,
+        args?.project_name as string,
+        args?.storage_choice as 'cloud' | 'local' | undefined
       );
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

@@ -466,7 +466,7 @@ async function handleContributeProject(supabase: any, body: any, corsHeaders: an
 
   const project_name = existingEntry?.project_name || project_id;
 
-  // Insert project knowledge entry
+  // Insert project knowledge entry (solutions is JSONB array)
   const { data, error } = await supabase
     .from('knowledge_entries')
     .insert({
@@ -474,13 +474,15 @@ async function handleContributeProject(supabase: any, body: any, corsHeaders: an
       project_id,
       project_name,
       query,
-      solution,
+      solutions: [{
+        solution,
+        success_rate: null,
+        command: null,
+        note: null
+      }],
       category: category || 'general',
       is_public,
-      type: 'solution',
-      success_count: 0,
-      failure_count: 0,
-      command: null
+      type: 'fix'
     })
     .select()
     .single();
@@ -513,42 +515,40 @@ async function handleSearchProject(supabase: any, body: any, corsHeaders: any) {
     });
   }
 
-  // Build query filter
-  let queryBuilder = supabase
-    .from('knowledge_entries')
-    .select('*');
+  // Use search_knowledge RPC, then filter by user/project
+  const { data: allResults, error: searchError } = await supabase.rpc('search_knowledge', {
+    search_query: query,
+    result_limit: 50
+  });
 
-  if (project_id) {
-    // Search specific project
-    queryBuilder = queryBuilder.or(`user_id.eq.${user_id},is_public.eq.true`);
-    queryBuilder = queryBuilder.eq('project_id', project_id);
-  } else {
-    // Search all user's projects + public if enabled
-    if (include_public) {
-      queryBuilder = queryBuilder.or(`user_id.eq.${user_id},is_public.eq.true`);
-    } else {
-      queryBuilder = queryBuilder.eq('user_id', user_id);
-    }
-  }
-
-  // Use text search on query and solution
-  queryBuilder = queryBuilder.textSearch('fts', query.split(' ').join(' & '));
-  queryBuilder = queryBuilder.limit(10);
-
-  const { data: results, error } = await queryBuilder;
-
-  if (error) {
-    console.error('Search project error:', error);
+  if (searchError) {
+    console.error('Search project error:', searchError);
     return new Response(JSON.stringify({ error: 'Search failed' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 
+  // Filter results to user's entries (or public)
+  let results = allResults || [];
+
+  if (project_id) {
+    // Filter to specific project
+    results = results.filter((r: any) =>
+      r.project_id === project_id &&
+      (r.user_id === user_id || (include_public && r.is_public))
+    );
+  } else {
+    // Filter to all user projects
+    results = results.filter((r: any) =>
+      r.user_id === user_id || (include_public && r.is_public)
+    );
+  }
+
   return new Response(JSON.stringify({
     query,
-    results: results || [],
-    count: results?.length || 0,
+    results: results.slice(0, 10),
+    count: results.length,
     source: project_id ? `project:${project_id}` : 'all projects'
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }

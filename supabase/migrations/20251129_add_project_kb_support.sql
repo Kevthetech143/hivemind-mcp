@@ -26,10 +26,13 @@ CREATE POLICY "user_read_own" ON knowledge_entries
   FOR SELECT
   USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
 
--- 3. Users can insert their own entries
+-- 3. Users can insert their own entries (via edge function with service role)
 CREATE POLICY "user_insert_own" ON knowledge_entries
   FOR INSERT
-  WITH CHECK (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
+  WITH CHECK (
+    user_id = current_setting('request.jwt.claims', true)::json->>'sub'
+    OR current_setting('request.jwt.claims', true)::json->>'role' = 'service_role'
+  );
 
 -- 4. Users can update their own entries
 CREATE POLICY "user_update_own" ON knowledge_entries

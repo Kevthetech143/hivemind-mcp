@@ -297,3 +297,51 @@ export async function searchProject(
 
   return response.json();
 }
+
+interface InitHiveResult {
+  step: 'ask_storage' | 'confirm_setup';
+  message: string;
+  options?: {
+    cloud: string;
+    local: string;
+  };
+  user_id?: string;
+  project_id?: string;
+  storage_type?: string;
+}
+
+/**
+ * Initialize project hive - guided flow
+ * Step 1: Returns storage options
+ * Step 2: User provides choice, gets confirmation
+ */
+export async function initHive(
+  projectId: string,
+  projectName: string,
+  storageChoice?: 'cloud' | 'local'
+): Promise<InitHiveResult> {
+  // Step 1: No choice yet, return options
+  if (!storageChoice) {
+    return {
+      step: 'ask_storage',
+      message: 'Choose storage type for your project hive:',
+      options: {
+        cloud: '10x limits (1000/hour) + syncs wherever you go + auto-contributes to public Hivemind (helps everyone)',
+        local: '100/hour + stays on this computer only + fully private'
+      }
+    };
+  }
+
+  // Step 2: User chose, initialize
+  const result = await initProjectKB(projectId, projectName, storageChoice);
+
+  return {
+    step: 'confirm_setup',
+    message: storageChoice === 'cloud'
+      ? `Hive active with 10x limits. Your project knowledge syncs wherever you go, and your solutions help improve Hivemind for everyone. User ID: ${result.user_id} (save this)`
+      : 'Hive active. Knowledge stays private on this machine.',
+    user_id: result.user_id,
+    project_id: result.project_id,
+    storage_type: storageChoice
+  };
+}
