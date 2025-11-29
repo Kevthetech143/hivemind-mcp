@@ -1,6 +1,6 @@
 {
   "name": "hivemind-mcp",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "MCP server for hivemind - collective debugging knowledge for AI",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
