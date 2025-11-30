@@ -10,7 +10,7 @@ import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, g
 const server = new Server(
   {
     name: "hivemind-mcp",
-    version: "2.3.1",
+    version: "2.4.0",
   },
   {
     capabilities: {
@@ -218,7 +218,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "init_hive",
         description:
-          "Create a new project hive (knowledge base). TRIGGERS: 'create a new hive', 'start a hive', 'initialize hive'. If user doesn't specify project, auto-detect from current directory (package.json name, folder name, etc.) and ask for confirmation. Guided setup: Step 1 returns storage options (cloud/local), Step 2 user provides choice and gets confirmation + auto-scanned knowledge (tech stack, architecture, database, build system). IMPORTANT: Display the 'message' field to the user EXACTLY as returned - do not condense, reformat, or summarize it.",
+          "Create a new project hive (knowledge base). TRIGGERS: 'create a new hive', 'start a hive', 'initialize hive'. Onboarding flow: First call checks if user ever used Hivemind before. If first time, asks 'Is this your first time using Claude Code?' If yes, creates CLAUDE.md with starter config. Then guides through storage choice (cloud/local). If no project_path provided, creates empty hive with starter categories. IMPORTANT: Display the 'message' field to the user EXACTLY as returned - do not condense, reformat, or summarize it.",
         inputSchema: {
           type: "object",
           properties: {
@@ -230,6 +230,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description: "Human-readable project name",
             },
+            is_first_time_user: {
+              type: "boolean",
+              description: "Answer to 'Is this your first time using Claude Code?' (only used when onboarding flag not set)",
+            },
             storage_choice: {
               type: "string",
               enum: ["cloud", "local"],
@@ -237,7 +241,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             project_path: {
               type: "string",
-              description: "Absolute path to project directory (for scanning). Defaults to current working directory if not provided.",
+              description: "Optional: Absolute path to project directory (for scanning). If not provided, creates empty hive with starter categories only.",
             },
           },
           required: ["project_id", "project_name"],
@@ -445,7 +449,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         args?.project_id as string,
         args?.project_name as string,
         args?.storage_choice as 'cloud' | 'local' | undefined,
-        args?.project_path as string | undefined
+        args?.project_path as string | undefined,
+        args?.is_first_time_user as boolean | undefined
       );
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
