@@ -10,7 +10,7 @@ import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, g
 const server = new Server(
   {
     name: "hivemind-mcp",
-    version: "1.9.0",
+    version: "2.3.1",
   },
   {
     capabilities: {
@@ -148,7 +148,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "contribute_project",
         description:
-          "Store project-specific knowledge (errors, solutions, patterns). Private by default, optionally public.",
+          "Add knowledge to project hive. TRIGGERS: 'add to hive', 'update hive', 'contribute to hive', 'store in hive'. When user says 'update hive', analyze recent work and contribute automatically. When user says 'add to hive', ask what they want to store. Stores solutions, patterns, pitfalls, architecture decisions, etc. Private by default, optionally public. Categories are dynamic - user can create any category name.",
         inputSchema: {
           type: "object",
           properties: {
@@ -187,7 +187,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "search_project",
         description:
-          "Search project-specific knowledge base. Searches your private entries + optionally public entries.",
+          "Search project hive for knowledge. TRIGGERS: 'search my hive for [topic]', 'search hive [query]', 'find in hive [topic]', 'what does my hive know about [topic]'. Searches your private entries + optionally public entries. Returns relevant solutions, patterns, architecture decisions, etc.",
         inputSchema: {
           type: "object",
           properties: {
@@ -218,7 +218,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "init_hive",
         description:
-          "Guided setup for project knowledge base (hive). Call without storage_choice first to get options, then call again with user's choice. Auto-scans project and contributes foundational knowledge (tech stack, architecture, database, build system). IMPORTANT: Display the 'message' field to the user EXACTLY as returned - do not condense, reformat, or summarize it.",
+          "Create a new project hive (knowledge base). TRIGGERS: 'create a new hive', 'start a hive', 'initialize hive'. If user doesn't specify project, auto-detect from current directory (package.json name, folder name, etc.) and ask for confirmation. Guided setup: Step 1 returns storage options (cloud/local), Step 2 user provides choice and gets confirmation + auto-scanned knowledge (tech stack, architecture, database, build system). IMPORTANT: Display the 'message' field to the user EXACTLY as returned - do not condense, reformat, or summarize it.",
         inputSchema: {
           type: "object",
           properties: {
@@ -257,6 +257,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             project_id: {
               type: "string",
               description: "Project identifier to delete",
+            },
+            project_path: {
+              type: "string",
+              description: "Optional: Project directory path (required for local storage)",
             },
           },
           required: ["user_id", "project_id"],
@@ -323,7 +327,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "list_my_hives",
         description:
-          "List all project hives for a user. Returns project_id, project_name, and entry count for each hive.",
+          "List all project hives for a user. TRIGGERS: 'show me my hives', 'list my hives', 'what hives do I have', 'all my hives'. Returns project_id, project_name, and entry count for each hive. For local storage, searches current directory for .user_id files.",
         inputSchema: {
           type: "object",
           properties: {
@@ -451,7 +455,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "delete_hive": {
       const result = await deleteHive(
         args?.user_id as string,
-        args?.project_id as string
+        args?.project_id as string,
+        args?.project_path as string | undefined
       );
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],

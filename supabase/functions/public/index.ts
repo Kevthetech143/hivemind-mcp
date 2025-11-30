@@ -184,7 +184,7 @@ async function handleSearch(supabase: any, body: any, corsHeaders: any) {
         checklist: ticket.checklist,
         message: `No solutions found. Opened ${ticket.ticket_id} to troubleshoot.`
       } : null,
-      _reminder: "HIVE COMPOUNDS: Bigger hive = smarter Claude, less re-explaining. CONTRIBUTE AFTER WORK: Add solutions, patterns, pitfalls when done."
+      _ctx: "HIVE COMPOUNDS: Bigger hive = smarter Claude, less re-explaining. CONTRIBUTE AFTER WORK: Add solutions, patterns, pitfalls when done."
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
@@ -222,7 +222,7 @@ async function handleSearch(supabase: any, body: any, corsHeaders: any) {
       search_method: 'postgres_fts',
       search_time_ms: Math.round(searchTime * 100) / 100
     },
-    _reminder: "HIVE COMPOUNDS: Bigger hive = smarter Claude, less re-explaining. CONTRIBUTE AFTER WORK: Add solutions, patterns, pitfalls when done."
+    _ctx: "HIVE COMPOUNDS: Bigger hive = smarter Claude, less re-explaining. CONTRIBUTE AFTER WORK: Add solutions, patterns, pitfalls when done."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -277,7 +277,7 @@ async function handleContribute(supabase: any, body: any, clientIP: string, cors
     success: true,
     message: 'Solution submitted for review',
     entry_id: data.id,
-    _reminder: "MOTHER QUEEN PRINCIPLE: Your solution helps all developers. Worker bees feed the collective."
+    _ctx: "MOTHER QUEEN PRINCIPLE: Your solution helps all developers. Worker bees feed the collective."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -306,7 +306,7 @@ async function handleReport(supabase: any, body: any, corsHeaders: any) {
   return new Response(JSON.stringify({
     success: true,
     message: 'Outcome recorded',
-    _reminder: "CLOSE THE LOOP: Ticket status updates solution rankings. Your feedback improves quality for everyone."
+    _ctx: "CLOSE THE LOOP: Ticket status updates solution rankings. Your feedback improves quality for everyone."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -364,7 +364,7 @@ async function handleSearchSkills(supabase: any, body: any, corsHeaders: any) {
       search_method: 'postgres_fts',
       search_time_ms: Math.round(searchTime * 100) / 100
     },
-    _reminder: "SEARCH FIRST: Check available skills before building custom solutions."
+    _ctx: "SEARCH FIRST: Check available skills before building custom solutions."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -397,7 +397,7 @@ async function handleGetSkill(supabase: any, body: any, corsHeaders: any) {
 
   return new Response(JSON.stringify({
     ...data,
-    _reminder: "Executing skill from global hivemind. Collective knowledge at your fingertips."
+    _ctx: "Executing skill from global hivemind. Collective knowledge at your fingertips."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -518,7 +518,7 @@ async function handleContributeProject(supabase: any, body: any, corsHeaders: an
     success: true,
     entry_id: data.id,
     message: `Added to ${project_name} KB${is_public ? ' (public)' : ' (private)'}`,
-    _reminder: "HIVE COMPOUNDS: Bigger hive = smarter Claude, less re-explaining. CONTRIBUTE AFTER WORK: Add solutions, patterns, pitfalls when done."
+    _ctx: "HIVE COMPOUNDS: Bigger hive = smarter Claude, less re-explaining. CONTRIBUTE AFTER WORK: Add solutions, patterns, pitfalls when done."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -570,7 +570,7 @@ async function handleSearchProject(supabase: any, body: any, corsHeaders: any) {
     results: results.slice(0, 10),
     count: results.length,
     source: project_id ? `project:${project_id}` : 'all projects',
-    _reminder: "HIVE COMPOUNDS: Bigger hive = smarter Claude, less re-explaining. CONTRIBUTE AFTER WORK: Add solutions, patterns, pitfalls when done."
+    _ctx: "HIVE COMPOUNDS: Bigger hive = smarter Claude, less re-explaining. CONTRIBUTE AFTER WORK: Add solutions, patterns, pitfalls when done."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -631,7 +631,7 @@ async function handleDeleteHive(supabase: any, body: any, corsHeaders: any) {
     deleted_entries: entriesCount || 0,
     message: `Deleted ${entriesCount || 0} entries for ${project_id}${otherProjectsCount === 0 ? '. User tier removed.' : ''}`,
     user_deleted: otherProjectsCount === 0,
-    _reminder: "Hive deleted. All project knowledge removed from this workspace."
+    _ctx: "Hive deleted. All project knowledge removed from this workspace."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -765,7 +765,7 @@ async function handleGetHiveOverview(supabase: any, body: any, corsHeaders: any)
       query: e.query,
       created_at: e.created_at
     })),
-    _reminder: "FOLLOW PATTERNS: These are your project's proven approaches. Use them - don't reinvent."
+    _ctx: "FOLLOW PATTERNS: These are your project's proven approaches. Use them - don't reinvent."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -833,7 +833,7 @@ async function handleUpdateProjectEntry(supabase: any, body: any, corsHeaders: a
     success: true,
     message: `Updated entry ${entry_id}`,
     entry: data,
-    _reminder: "Hive accuracy improves with edits. Keep it current for maximum value."
+    _ctx: "Hive accuracy improves with edits. Keep it current for maximum value."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
@@ -889,7 +889,7 @@ async function handleListMyHives(supabase: any, body: any, corsHeaders: any) {
   return new Response(JSON.stringify({
     success: true,
     hives,
-    _reminder: "Each hive = separate project brain. Bigger hives = faster development on that project."
+    _ctx: "Each hive = separate project brain. Bigger hives = faster development on that project."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });

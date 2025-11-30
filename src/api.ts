@@ -45,6 +45,9 @@ async function writeLocalHive(projectPath: string, hive: LocalHive): Promise<voi
 }
 
 async function createLocalHive(projectPath: string, projectId: string, projectName: string, userId: string): Promise<void> {
+  const fs = await import('fs/promises');
+  const path = await import('path');
+
   const hive: LocalHive = {
     storage_type: 'local',
     user_id: userId,
@@ -53,6 +56,10 @@ async function createLocalHive(projectPath: string, projectId: string, projectNa
     entries: []
   };
   await writeLocalHive(projectPath, hive);
+
+  // Write .user_id file
+  const userIdPath = path.join(projectPath, '.user_id');
+  await fs.writeFile(userIdPath, userId, 'utf-8');
 }
 
 interface SearchResult {
@@ -416,8 +423,38 @@ interface DeleteHiveResult {
  */
 export async function deleteHive(
   userId: string,
-  projectId: string
+  projectId: string,
+  projectPath?: string
 ): Promise<DeleteHiveResult> {
+  // Check if local storage
+  if (userId.startsWith('local-') && projectPath) {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+
+    const hivePath = path.join(projectPath, '.hive.json');
+    const userIdPath = path.join(projectPath, '.user_id');
+
+    try {
+      // Read hive to count entries before deleting
+      const hive = await readLocalHive(projectPath);
+      const deletedEntries = hive?.entries.length || 0;
+
+      // Delete both .hive.json and .user_id files
+      await fs.unlink(hivePath).catch(() => {});
+      await fs.unlink(userIdPath).catch(() => {});
+
+      return {
+        success: true,
+        deleted_entries: deletedEntries,
+        message: 'Hive deleted. All knowledge entries removed.',
+        user_deleted: false
+      };
+    } catch (error) {
+      throw new Error(`Failed to delete local hive: ${error}`);
+    }
+  }
+
+  // Cloud storage
   const response = await fetch(`${API_BASE}/delete-hive`, {
     method: "POST",
     headers: {
@@ -687,7 +724,7 @@ interface InitHiveResult {
   project_id?: string;
   storage_type?: string;
   scanned_entries?: number;
-  _reminder?: string;
+  _ctx?: string;
   scan_results?: {
     tech_stack: string[];
     architecture: string[];
@@ -1210,6 +1247,85 @@ export async function initHive(
       );
       scannedEntries++;
 
+      // Add getting-started guide (ALWAYS FIRST)
+      await contributeProject(
+        result.user_id,
+        projectId,
+        `How do I use my hive?`,
+        `Your hive is your command center. Here's what you can do:
+
+**SEARCH YOUR HIVE:**
+Say: "search my hive for [topic]" or "how do we handle auth?"
+
+**ADD TO YOUR HIVE:**
+Say: "add to hive" or "contribute to hive" - I'll ask what to store
+Or: "update hive" - I'll analyze what we worked on and add it automatically
+
+**CATEGORIES:**
+You can use ANY category name you want. Create them as you go:
+- solution: Bug fixes that worked
+- patterns: Code patterns to follow
+- pitfall: What NOT to do / failed approaches
+- roadmap: Future features and plans
+- architecture: Design decisions
+- features: How things work
+- deployment: How to deploy/release
+...or make your own!
+
+**VIEW YOUR HIVE:**
+Say: "show me my hive" to see all categories and recent entries
+
+**EDIT ENTRIES:**
+Say: "update entry [id]" to fix or improve existing entries
+
+Your hive compounds - the more you add, the smarter I get about YOUR project.`,
+        'getting-started',
+        false,
+        projectPath
+      );
+      scannedEntries++;
+
+      // Pre-create key categories with helpful starters
+      await contributeProject(
+        result.user_id,
+        projectId,
+        `What should go in the 'solution' category?`,
+        `Store bug fixes and problems you solved here. When you fix an error, add it so you never debug it twice.
+
+Example: "Fixed CORS error by adding credentials: true to fetch config"`,
+        'solution',
+        false,
+        projectPath
+      );
+      scannedEntries++;
+
+      await contributeProject(
+        result.user_id,
+        projectId,
+        `What should go in the 'pitfall' category?`,
+        `Document failed approaches and things that DON'T work. Save future you from repeating mistakes.
+
+Example: "Don't use Promise.all for sequential API calls - causes race conditions"`,
+        'pitfall',
+        false,
+        projectPath
+      );
+      scannedEntries++;
+
+      await contributeProject(
+        result.user_id,
+        projectId,
+        `What should go in the 'roadmap' category?`,
+        `Track future features, planned improvements, and technical debt here.
+
+Example: "Add rate limiting to API endpoints"
+Example: "Refactor auth middleware for better error handling"`,
+        'roadmap',
+        false,
+        projectPath
+      );
+      scannedEntries++;
+
       // Add starter skills (bookmarks to global hivemind skills)
       await contributeProject(
         result.user_id,
@@ -1242,32 +1358,27 @@ export async function initHive(
     ? 'Supabase cloud database (ksethrexopllfhyrxlrb.supabase.co)'
     : 'Supabase cloud database (ksethrexopllfhyrxlrb.supabase.co)';
 
-  const nextStepsMessage = `This hive is your project's growing brain. Every solution, pitfall, broken approach, and architecture decision you store makes Claude faster and smarter in future sessions. The bigger your hive grows, the less you re-explain and the fewer past mistakes get repeated.
+  const nextStepsMessage = `Your hive is ready! Let's get you comfortable with 3 quick actions:
 
-Updating is simple: Just say "update hive" and Claude will analyze what you worked on and add relevant entries automatically.
+**ACTION 1: Search your hive**
+Say: "search my hive for tech stack"
+(This shows you what Claude already knows about your project)
 
-Store:
-- Solutions that worked
-- Approaches that failed (so Claude avoids them)
-- Architecture decisions and why you made them
-- Database schema changes
-- Common pitfalls and gotchas
-- Dependencies and version issues
+**ACTION 2: Add something new**
+Say: "add to hive"
+(I'll ask what you want to store - try adding a note about something you're working on)
 
-For maximum impact, add this to your CLAUDE.md:
+**ACTION 3: See the full guide**
+Say: "search my hive for getting started"
+(Shows you everything your hive can do - categories, commands, tips)
 
-## Project Hive: ${projectName}
-- User ID: ${result.user_id}
-- Project ID: ${projectId}
+Ready? Try ACTION 1 now: "search my hive for tech stack"
 
-**Protocol:**
-1. Search hive before working: mcp__hivemind__search_project(user_id, query, project_id)
-2. After every session: "update hive" (Claude adds entries for you)
-3. Keep it current - run "update hive" after major changes
+---
 
-Bigger hive = Smarter Claude = Faster development. Your project knowledge compounds over time.
+**Pro tip:** After any work session, say "update hive" and I'll automatically add what we learned. Your hive grows smarter every day.
 
-Want to see your current hive? Say "show me my hive"`;
+Want to see your hive overview? Say "show me my hive"`;
 
   const localStoragePath = storageChoice === 'local' ? `${projectPath}/.hive.json` : null;
 
@@ -1282,7 +1393,7 @@ Want to see your current hive? Say "show me my hive"`;
     project_id: result.project_id,
     storage_type: storageChoice,
     scanned_entries: scannedEntries,
-    _reminder: "SEARCH FIRST, CODE SECOND. HIVE = PROJECT BRAIN: Contains YOUR proven approaches, not generic answers.",
+    _ctx: "SEARCH FIRST, CODE SECOND. HIVE = PROJECT BRAIN: Contains YOUR proven approaches, not generic answers.",
     scan_results: scanResult ? {
       tech_stack: scanResult.tech_stack,
       architecture: scanResult.architecture,
