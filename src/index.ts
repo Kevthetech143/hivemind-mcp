@@ -5,12 +5,12 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills, initProjectKB, contributeProject, searchProject, initHive, deleteHive, getHiveOverview, updateProjectEntry, listMyHives } from "./api.js";
+import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, getSkill, countSkills, initProjectKB, contributeProject, searchProject, initHive, deleteHive, getHiveOverview, updateProjectEntry, listMyHives, formatHiveEntry } from "./api.js";
 
 const server = new Server(
   {
     name: "hivemind-mcp",
-    version: "2.4.1",
+    version: "2.5.0",
   },
   {
     capabilities: {

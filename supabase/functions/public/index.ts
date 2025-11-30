@@ -111,10 +111,12 @@ serve(async (req) => {
         return await handleUpdateProjectEntry(supabase, body, corsHeaders);
       case 'list-my-hives':
         return await handleListMyHives(supabase, body, corsHeaders);
+      case 'update-kb-entry':
+        return await handleUpdateKBEntry(supabase, body, corsHeaders);
       default:
         return new Response(JSON.stringify({
           error: 'Unknown action',
-          available_actions: ['search', 'contribute', 'report', 'search-skills', 'skill', 'count-skills', 'init-project', 'contribute-project', 'search-project', 'delete-hive', 'get-hive-overview', 'update-project-entry', 'list-my-hives']
+          available_actions: ['search', 'contribute', 'report', 'search-skills', 'skill', 'count-skills', 'init-project', 'contribute-project', 'search-project', 'delete-hive', 'get-hive-overview', 'update-project-entry', 'list-my-hives', 'update-kb-entry']
         }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -890,6 +892,63 @@ async function handleListMyHives(supabase: any, body: any, corsHeaders: any) {
     success: true,
     hives,
     _ctx: "Each hive = separate project brain. Bigger hives = faster development on that project."
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
+}
+
+// Update global KB entry (for skills/fixes - requires admin approval)
+async function handleUpdateKBEntry(supabase: any, body: any, corsHeaders: any) {
+  const { entry_id, query } = body;
+
+  if (!entry_id) {
+    return new Response(JSON.stringify({ error: 'entry_id required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  if (!query) {
+    return new Response(JSON.stringify({ error: 'query field required for update' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Update global KB entry (only query field for now)
+  const { data, error } = await supabase
+    .from('knowledge_entries')
+    .update({ query })
+    .eq('id', entry_id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Update KB entry error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Failed to update entry'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  if (!data) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Entry not found'
+    }), {
+      status: 404,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  return new Response(JSON.stringify({
+    success: true,
+    message: `Updated entry ${entry_id}`,
+    entry: data,
+    _ctx: "Global KB updated. Changes propagate to all users immediately."
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });

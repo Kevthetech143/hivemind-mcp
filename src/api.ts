@@ -418,6 +418,56 @@ interface DeleteHiveResult {
   user_deleted: boolean;
 }
 
+interface HiveEntryFormat {
+  category: string;
+  files?: string;
+  version?: string;
+  content: string;
+  codeBlock?: string;
+  why: string;
+}
+
+/**
+ * Format hive entry with optimized structure for AI retrieval
+ * Uses metadata-first approach for better semantic search
+ *
+ * @example
+ * const formatted = formatHiveEntry({
+ *   category: 'solution',
+ *   files: 'src/api.ts:100-150',
+ *   version: 'v2.4.0',
+ *   content: 'Added update-kb-entry endpoint. POST with entry_id and query.',
+ *   codeBlock: '```bash\ncurl -X POST https://example.com/update\n```',
+ *   why: 'Enables programmatic KB maintenance without database access'
+ * });
+ *
+ * await contributeProject(userId, projectId, "How to update KB?", formatted);
+ */
+export function formatHiveEntry(entry: HiveEntryFormat): string {
+  const parts: string[] = [];
+
+  // Metadata section (helps search/filtering)
+  parts.push(`CATEGORY: ${entry.category}`);
+  if (entry.files) parts.push(`FILES: ${entry.files}`);
+  if (entry.version) parts.push(`VERSION: ${entry.version}`);
+  parts.push(''); // Blank line after metadata
+
+  // Main content (natural language for embeddings)
+  parts.push(entry.content);
+
+  // Code block if provided
+  if (entry.codeBlock) {
+    parts.push('');
+    parts.push(entry.codeBlock);
+  }
+
+  // Why section (context/reasoning)
+  parts.push('');
+  parts.push(`WHY: ${entry.why}`);
+
+  return parts.join('\n');
+}
+
 /**
  * Delete project hive - removes all project entries
  */
