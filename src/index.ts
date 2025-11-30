@@ -10,7 +10,7 @@ import { searchKnowledgeBase, reportOutcome, contributeSolution, searchSkills, g
 const server = new Server(
   {
     name: "hivemind-mcp",
-    version: "2.4.0",
+    version: "2.4.1",
   },
   {
     capabilities: {

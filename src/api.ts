@@ -1111,35 +1111,63 @@ I'm here to help you build great software. Think of me as a patient, honest codi
 - **Honest about what I know** - I'll tell you when I'm uncertain
 - **Learns your project** - Through your hive, I remember what matters to YOU
 
+## 🐝 Your Hive = Project Command Center
+
+**Your hive is THE single source of truth for your project.**
+
+It's not just for errors - it's your project brain that stores:
+- **How things work** (architecture, tech stack, patterns)
+- **Why decisions were made** (design choices, tradeoffs)
+- **What to avoid** (pitfalls, failed approaches)
+- **How to do things** (deployment, testing, workflows)
+- **What's next** (roadmap, planned features, tech debt)
+
+**The more you add, the less you re-explain. It compounds.**
+
 ## Session Start Protocol
 
 **At the start of each session:**
 1. If \`.user_id\` exists in current directory, run \`get_hive_overview\` to check if hive needs initial scan
 2. If hive has only "onboarding" category entries → prompt user: "Want me to scan this project and populate your hive?"
 
-## Hivemind Protocol (CRITICAL)
+## How To Use Your Hive
 
-**Your hive is your command center. Use it religiously:**
+### Search Before You Build
+**Always check your hive first:**
+- "search my hive for auth" - See how authentication is handled
+- "search my hive for deployment" - Check deployment process
+- "search my hive for patterns" - Review coding patterns to follow
+- "how do we handle errors?" - I'll search your hive automatically
 
-### When You Hit An Error
-1. **Search hivemind first:** \`search_kb("exact error message")\`
-2. **Apply solution** or debug manually
-3. **Report outcome:** \`report_outcome(solution_id, "success")\` or \`"failure"\`
-4. **Contribute if new:** \`contribute_solution(query, solution, category)\`
+### Add After You Solve
+**After any work, update your hive:**
+- "update hive" - I'll analyze what we did and add it automatically
+- "add to hive" - I'll ask what you want to store
 
-### During Development
-- **Search your hive** before implementing: "search my hive for auth patterns"
-- **Add to hive** after solving: "update hive" (I'll analyze and add automatically)
-- **Check patterns** before refactoring: "search my hive for patterns"
+**What to add:**
+- Fixed a bug → solution category
+- Made a design decision → patterns or architecture category
+- Found something that doesn't work → pitfall category
+- Built a feature → features category
+- Figured out a workflow → deployment/testing category
 
-### Categories You Can Use
-- **solution** - Bug fixes that worked
-- **patterns** - Code patterns to follow
-- **pitfall** - What NOT to do / failed approaches
+### Common Categories
+- **solution** - Bug fixes and problems solved
+- **patterns** - How we code in THIS project
+- **pitfall** - What NOT to do (save future you time)
 - **features** - How things work
-- **roadmap** - Future plans
-- **deployment** - How to deploy
+- **architecture** - Design decisions and why
+- **roadmap** - What's planned next
+- **deployment** - How to ship
 - Or create your own!
+
+## Global Hivemind (16k+ Solutions)
+
+When you hit an error I don't know:
+1. **I search global hivemind first:** \`search_kb("exact error")\`
+2. **Apply solution** or debug manually
+3. **Report outcome:** Did it work? This improves rankings for everyone
+4. **Contribute if new:** Your fix helps the next developer
 
 ## Communication Style
 
@@ -1158,7 +1186,7 @@ I'm here to help you build great software. Think of me as a patient, honest codi
 
 ---
 
-**Remember:** The more you use your hive, the smarter I get about YOUR project. It compounds.`;
+**Remember:** Your hive is your competitive advantage. The bigger it gets, the faster you ship.`;
 
   await fs.writeFile(claudeMdPath, claudeMdContent, 'utf-8');
 }
