@@ -154,7 +154,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             user_id: {
               type: "string",
-              description: "User ID from init_project_kb",
+              description: "Optional: User ID (auto-detected from .user_id in cwd if not provided)",
             },
             project_id: {
               type: "string",
@@ -181,7 +181,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Optional: Project directory path (required for local storage)",
             },
           },
-          required: ["user_id", "project_id", "query", "solution"],
+          required: ["project_id", "query", "solution"],
         },
       },
       {
@@ -193,7 +193,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             user_id: {
               type: "string",
-              description: "User ID from init_project_kb",
+              description: "Optional: User ID (auto-detected from .user_id in cwd if not provided)",
             },
             query: {
               type: "string",
@@ -212,7 +212,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Optional: Project directory path (required for local storage)",
             },
           },
-          required: ["user_id", "query"],
+          required: ["query"],
         },
       },
       {
@@ -256,7 +256,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             user_id: {
               type: "string",
-              description: "User ID from init_hive",
+              description: "Optional: User ID (auto-detected from .user_id in cwd if not provided)",
             },
             project_id: {
               type: "string",
@@ -267,7 +267,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Optional: Project directory path (required for local storage)",
             },
           },
-          required: ["user_id", "project_id"],
+          required: ["project_id"],
         },
       },
       {
@@ -279,7 +279,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             user_id: {
               type: "string",
-              description: "User ID from init_hive",
+              description: "Optional: User ID (auto-detected from .user_id in cwd if not provided)",
             },
             project_id: {
               type: "string",
@@ -290,7 +290,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Optional: Project directory path (required for local storage)",
             },
           },
-          required: ["user_id", "project_id"],
+          required: ["project_id"],
         },
       },
       {
@@ -302,7 +302,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             user_id: {
               type: "string",
-              description: "User ID (must own the entry)",
+              description: "Optional: User ID (auto-detected from .user_id in cwd if not provided)",
             },
             entry_id: {
               type: "number",
@@ -325,7 +325,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Optional: Project directory path (required for local storage)",
             },
           },
-          required: ["user_id", "entry_id"],
+          required: ["entry_id"],
         },
       },
       {

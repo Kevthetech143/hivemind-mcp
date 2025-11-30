@@ -62,6 +62,25 @@ async function createLocalHive(projectPath: string, projectId: string, projectNa
   await fs.writeFile(userIdPath, userId, 'utf-8');
 }
 
+/**
+ * Auto-detect user_id from .user_id file in current working directory or specified path
+ * Returns null if file doesn't exist
+ */
+async function getUserId(projectPath?: string): Promise<string | null> {
+  const fs = await import('fs/promises');
+  const path = await import('path');
+
+  const targetPath = projectPath || process.cwd();
+  const userIdPath = path.join(targetPath, '.user_id');
+
+  try {
+    const userId = await fs.readFile(userIdPath, 'utf-8');
+    return userId.trim();
+  } catch {
+    return null;
+  }
+}
+
 interface SearchResult {
   query: string;
   solutions: Solution[];
@@ -296,7 +315,7 @@ export async function initProjectKB(
  * Contribute to project knowledge base
  */
 export async function contributeProject(
-  userId: string,
+  userId: string | null,
   projectId: string,
   query: string,
   solution: string,
@@ -304,6 +323,14 @@ export async function contributeProject(
   isPublic: boolean = false,
   projectPath?: string
 ): Promise<ContributeProjectResult> {
+  // Auto-detect user_id if not provided
+  if (!userId) {
+    userId = await getUserId(projectPath);
+    if (!userId) {
+      throw new Error('No .user_id file found. Run init_hive first.');
+    }
+  }
+
   // Check if local storage
   if (userId.startsWith('local-') && projectPath) {
     const hive = await readLocalHive(projectPath);
@@ -356,12 +383,20 @@ export async function contributeProject(
  * Search project knowledge base
  */
 export async function searchProject(
-  userId: string,
+  userId: string | null,
   query: string,
   projectId?: string,
   includePublic: boolean = true,
   projectPath?: string
 ): Promise<SearchProjectResult> {
+  // Auto-detect user_id if not provided
+  if (!userId) {
+    userId = await getUserId(projectPath);
+    if (!userId) {
+      throw new Error('No .user_id file found. Run init_hive first.');
+    }
+  }
+
   // Check if local storage
   if (userId.startsWith('local-') && projectPath) {
     const hive = await readLocalHive(projectPath);
@@ -472,10 +507,18 @@ export function formatHiveEntry(entry: HiveEntryFormat): string {
  * Delete project hive - removes all project entries
  */
 export async function deleteHive(
-  userId: string,
+  userId: string | null,
   projectId: string,
   projectPath?: string
 ): Promise<DeleteHiveResult> {
+  // Auto-detect user_id if not provided
+  if (!userId) {
+    userId = await getUserId(projectPath);
+    if (!userId) {
+      throw new Error('No .user_id file found. Run init_hive first.');
+    }
+  }
+
   // Check if local storage
   if (userId.startsWith('local-') && projectPath) {
     const fs = await import('fs/promises');
@@ -527,7 +570,7 @@ export async function deleteHive(
  * Update project entry - edit query, solution, or category
  */
 export async function updateProjectEntry(
-  userId: string,
+  userId: string | null,
   entryId: number,
   updates: {
     query?: string;
@@ -536,6 +579,14 @@ export async function updateProjectEntry(
   },
   projectPath?: string
 ): Promise<{ success: boolean; message: string }> {
+  // Auto-detect user_id if not provided
+  if (!userId) {
+    userId = await getUserId(projectPath);
+    if (!userId) {
+      throw new Error('No .user_id file found. Run init_hive first.');
+    }
+  }
+
   // Check if local storage
   if (userId.startsWith('local-') && projectPath) {
     const hive = await readLocalHive(projectPath);
@@ -681,10 +732,18 @@ function extractKeyword(query: string): string {
  * Get hive overview - shows stats and recent entries
  */
 export async function getHiveOverview(
-  userId: string,
+  userId: string | null,
   projectId: string,
   projectPath?: string
 ): Promise<GetHiveOverviewResult> {
+  // Auto-detect user_id if not provided
+  if (!userId) {
+    userId = await getUserId(projectPath);
+    if (!userId) {
+      throw new Error('No .user_id file found. Run init_hive first.');
+    }
+  }
+
   // Check if local storage
   if (userId.startsWith('local-') && projectPath) {
     const hive = await readLocalHive(projectPath);
